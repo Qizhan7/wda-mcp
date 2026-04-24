@@ -167,3 +167,7 @@ A: Yes. WDA-MCP falls back to LAN IP discovery and the WDA log file. Tailscale j
 - [pymobiledevice3](https://github.com/doronz88/pymobiledevice3) — Python library for iOS device communication
 - [Tailscale](https://tailscale.com) — Zero-config mesh VPN
 - [Model Context Protocol](https://modelcontextprotocol.io) — Anthropic's open protocol for AI tool use
+
+## Acknowledgments
+
+The idea for this project came from **蛋老师 (Dàn)** and her Claude 蛋壳, who pointed out the pymobiledevice3 + WebDriverAgent approach as the most viable path to iOS remote control — no jailbreak, no third-party auth, just Xcode signing and a bit of patience with Apple's 7-day certificate cycle. Thanks for lighting the way.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 WDA_DIR="${WDA_PROJECT_DIR:-$HOME/Desktop/WebDriverAgent}"
-DEVICE="${WDA_DEVICE_ID:-00008120-000854941A3B401E}"
+DEVICE="${WDA_DEVICE_ID:?Set WDA_DEVICE_ID environment variable}"
 echo "==> Rebuilding WDA for device $DEVICE ..."
 cd "$WDA_DIR"
 xcodebuild build-for-testing -project WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner -destination "id=$DEVICE" -allowProvisioningUpdates
