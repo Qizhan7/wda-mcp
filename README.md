@@ -41,6 +41,8 @@ git clone https://github.com/appium/WebDriverAgent.git ~/Desktop/WebDriverAgent
 cd ~/Desktop/WebDriverAgent
 ```
 
+> ⚠️ **Manual step required** — this is the one step that cannot be fully automated with a free Apple ID. You must open Xcode and configure signing by hand.
+
 Open `WebDriverAgent.xcodeproj` in Xcode:
 - Select the **WebDriverAgentRunner** target
 - Under **Signing & Capabilities**, choose your Apple ID team
