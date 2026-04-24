@@ -176,20 +176,24 @@ The main setup guide assumes macOS + Xcode. If you don't have a Mac, here's what
 | Control via HTTP | No | Any platform — it's just REST calls to port 8100 |
 | 7-day certificate renewal | No | Re-sign with Sideloadly, or pay $99/year for a 1-year certificate |
 
-### Option A: Free — borrow a Mac + self-sign (easiest)
+### Option A: Free — sign with a computer every 7 days
 
-1. **One-time on any Mac**: build WDA with Xcode, export the `.ipa` file and send it to yourself
-2. **Sign and install** with your free Apple ID — pick any of these (all free):
-   - **On Windows/Mac**: [Sideloadly](https://sideloadly.io) — plug in iPhone via USB, select the .ipa, sign and install
-   - **On iPhone directly**: 轻松签 (EasySign) or 牛蛙助手 (Bullfrog) — sign and install right on the phone, no computer needed
-   - **On Windows**: [3uTools](https://www.3u.com/) or 爱思助手 (i4Tools) — similar to Sideloadly
-3. **Launch WDA**: use [`go-ios runwda`](https://github.com/danielpaulus/go-ios) via USB
-4. **Run this MCP server**: `python server.py` — works anywhere
-5. **Every 7 days**: re-sign with the same tool (~2 minutes, some tools can do it on-phone)
+If you already have the WDA `.ipa` file:
 
-### Option B: $99/year — fully automated with GitHub Actions
+1. **Sign and install** using [Sideloadly](https://sideloadly.io) (Windows/Mac) — plug in iPhone via USB, select the .ipa, enter your Apple ID, done
+2. **Launch WDA**: use [`go-ios runwda`](https://github.com/danielpaulus/go-ios) via USB
+3. **Run this MCP server**: `python server.py` — works anywhere
+4. **Every 7 days**: re-sign with Sideloadly (~2 minutes)
 
-With a [$99/year Apple Developer account](https://developer.apple.com/programs/), you get a 1-year certificate and API Key access — no 2FA needed in CI, no manual renewal.
+> Free Apple ID signing expires every 7 days. Use a computer to re-sign — avoid on-device signing tools as they may trigger Apple ID restrictions.
+
+### Option B: Buy a signing certificate
+
+Purchase a developer or enterprise certificate from a signing service. With a valid certificate you can re-sign the `.ipa` using [zsign](https://github.com/zhlynn/zsign) (cross-platform CLI) or [Sideloadly](https://sideloadly.io), and the signature lasts much longer (typically months to a year).
+
+### Option C: $99/year Apple Developer account — fully automated
+
+With an [Apple Developer account](https://developer.apple.com/programs/), you get a 1-year certificate and API Key access — no 2FA needed in CI, no manual renewal.
 
 1. Fork this repo
 2. Add your signing credentials to GitHub repo **Settings → Secrets**:
@@ -199,12 +203,6 @@ With a [$99/year Apple Developer account](https://developer.apple.com/programs/)
    - `DEVICE_UDID` — your iPhone's UDID
 3. The included workflow (`.github/workflows/renew.yml`) runs every 6 days on GitHub's free macOS runner, builds a fresh WDA, and uploads it to Releases
 4. Download and install — or connect your Windows/Linux machine to auto-pull from Releases
-
-> **Why can't free accounts use GitHub Actions?** Free Apple ID certificates require 2FA on every login. CI can't type the verification code sent to your phone. The $99 account has an API Key that bypasses this entirely.
-
-### What about buying a third-party certificate?
-
-You might see services selling enterprise certificates (企业签名) or "super signing" (超级签名) online. **These do not work for WDA.** WDA is an XCUITest runner, not a regular app — it requires a development-type provisioning profile with your device's UDID. Enterprise certificates use in-house distribution, which the xctest launcher rejects. Don't waste money on these for WDA.
 
 ### Key tools for non-Mac users
 
