@@ -161,6 +161,38 @@ A: Make sure the iPhone doesn't auto-lock. Go to Settings → Display & Brightne
 **Q: Can I use this without Tailscale?**
 A: Yes. WDA-MCP falls back to LAN IP discovery and the WDA log file. Tailscale just adds remote access.
 
+## Without a Mac
+
+The main setup guide assumes macOS + Xcode. If you don't have a Mac, here's what you need to know.
+
+### What needs a Mac
+
+| Step | Mac required? | Alternative |
+|------|:---:|-------------|
+| Build WDA from source | Yes | One-time only — borrow a Mac, use a friend's, or use [GitHub Actions macOS runners](https://docs.github.com/en/actions/using-github-hosted-runners) to compile in CI |
+| Sign WDA | Yes (Xcode) | **After first build**: re-sign the .ipa on Windows with [Sideloadly](https://sideloadly.io) |
+| Install WDA on iPhone | No | `ideviceinstaller`, `go-ios install`, or Sideloadly (all cross-platform) |
+| Launch WDA on iPhone | No | [`go-ios runwda`](https://github.com/danielpaulus/go-ios) works on Linux/Windows |
+| Control via HTTP | No | Any platform — it's just REST calls to port 8100 |
+| 7-day certificate renewal | No | Re-sign with Sideloadly on Windows, or pay $99/year for a 1-year certificate |
+
+### The practical recipe
+
+1. **One-time on a Mac** (or macOS CI): build WDA with Xcode, save the `.ipa`
+2. **On Windows/Linux**: install the `.ipa` with [Sideloadly](https://sideloadly.io) or [`ideviceinstaller`](https://github.com/libimobiledevice/ideviceinstaller)
+3. **Launch WDA**: use [`go-ios runwda`](https://github.com/danielpaulus/go-ios) — works on Linux/Windows via USB
+4. **Run this MCP server**: `python server.py` — works anywhere
+5. **Renewal**: re-sign with Sideloadly every 7 days (free account) or skip renewal entirely with a [$99/year Apple Developer account](https://developer.apple.com/programs/)
+
+### Key tools for non-Mac users
+
+- **[go-ios](https://github.com/danielpaulus/go-ios)** — install apps, launch WDA, forward ports. Linux/Windows/macOS. The strongest cross-platform option.
+- **[pymobiledevice3](https://github.com/doronz88/pymobiledevice3)** — device communication, developer disk mounting, port forwarding. Python, all platforms.
+- **[Sideloadly](https://sideloadly.io)** — GUI tool for signing and installing IPAs on Windows/macOS. Handles free account re-signing.
+- **[ideviceinstaller](https://github.com/libimobiledevice/ideviceinstaller)** — CLI IPA installer for Linux.
+
+> **Bottom line**: You need a Mac exactly once to compile WDA. After that, everything runs on any platform.
+
 ## Credits
 
 - [WebDriverAgent](https://github.com/appium/WebDriverAgent) — Facebook/Appium's iOS automation framework
