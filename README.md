@@ -171,3 +171,51 @@ A: Yes. WDA-MCP falls back to LAN IP discovery and the WDA log file. Tailscale j
 ## Acknowledgments
 
 The idea for this project came from **蛋** and her Claude 蛋壳, who pointed out the pymobiledevice3 + WebDriverAgent approach as the most viable path to iOS remote control — no jailbreak, no third-party auth, just Xcode signing and a bit of patience with Apple's 7-day certificate cycle. Thanks for lighting the way.
+
+## Using with claude.ai (Chat Mode)
+
+The most fun way to use WDA-MCP is through **chat** — talking to Claude naturally and having it control your phone. "Go check my messages", "screenshot my home screen", "open the red app on the second page" — all in conversation.
+
+This requires **HTTP mode** since claude.ai needs to reach your MCP server over the internet.
+
+### Option A: ngrok (quickest, free)
+
+```bash
+# Install ngrok
+brew install ngrok
+
+# Start MCP server in HTTP mode
+python server.py --http --port 8200 &
+
+# Expose to internet
+ngrok http 8200
+```
+
+ngrok gives you a public URL like `https://abc123.ngrok.io`. Add this as a custom MCP server in claude.ai settings.
+
+### Option B: Cloudflare Tunnel (stable, free, custom domain)
+
+```bash
+# Install cloudflared
+brew install cloudflare/cloudflare/cloudflared
+
+# Create tunnel (one-time setup)
+cloudflared tunnel login
+cloudflared tunnel create wda-mcp
+
+# Start MCP server
+python server.py --http --port 8200 &
+
+# Expose via tunnel
+cloudflared tunnel --url http://localhost:8200
+```
+
+For a permanent custom domain, configure the tunnel in your Cloudflare dashboard.
+
+### Adding to claude.ai
+
+1. Go to claude.ai → Settings → MCP Servers
+2. Add a new server with your public URL (ngrok or Cloudflare)
+3. Set all WDA tools to "Always allow" so you don't have to approve each action
+
+> **Why chat, not Claude Code?** Claude Code runs on your computer — it can already control your Mac directly. The magic of WDA-MCP is controlling your *phone* through natural conversation from anywhere. "Hey, take a screenshot of my phone" hits different when you're chatting on the couch.

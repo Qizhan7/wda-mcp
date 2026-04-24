@@ -111,7 +111,19 @@ def wda_screenshot() -> str:
 def wda_tap(x: float, y: float) -> str:
     """Tap a point on iPhone screen. iPhone 14 Pro: 393x852 points."""
     sid = _wda_get_session()
-    r = _wda_request("POST", f"/session/{sid}/wda/tap/0", {"x": x, "y": y})
+    r = _wda_request("POST", f"/session/{sid}/actions", {
+        "actions": [{
+            "type": "pointer",
+            "id": "finger1",
+            "parameters": {"pointerType": "touch"},
+            "actions": [
+                {"type": "pointerMove", "duration": 0, "x": int(x), "y": int(y)},
+                {"type": "pointerDown", "button": 0},
+                {"type": "pause", "duration": 100},
+                {"type": "pointerUp", "button": 0}
+            ]
+        }]
+    })
     if "error" in r:
         return f"Tap failed: {r.get('error', 'unknown')}"
     return f"Tapped ({x}, {y})"
