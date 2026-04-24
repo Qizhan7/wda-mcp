@@ -176,13 +176,16 @@ The main setup guide assumes macOS + Xcode. If you don't have a Mac, here's what
 | Control via HTTP | No | Any platform — it's just REST calls to port 8100 |
 | 7-day certificate renewal | No | Re-sign with Sideloadly, or pay $99/year for a 1-year certificate |
 
-### Option A: Free — borrow a Mac + Sideloadly (easiest)
+### Option A: Free — borrow a Mac + self-sign (easiest)
 
-1. **One-time on any Mac**: build WDA with Xcode, save the `.ipa`
-2. **On Windows**: install [Sideloadly](https://sideloadly.io), sign and install the `.ipa` with your free Apple ID
+1. **One-time on any Mac**: build WDA with Xcode, export the `.ipa` file and send it to yourself
+2. **Sign and install** with your free Apple ID — pick any of these (all free):
+   - **On Windows/Mac**: [Sideloadly](https://sideloadly.io) — plug in iPhone via USB, select the .ipa, sign and install
+   - **On iPhone directly**: 轻松签 (EasySign) or 牛蛙助手 (Bullfrog) — sign and install right on the phone, no computer needed
+   - **On Windows**: [3uTools](https://www.3u.com/) or 爱思助手 (i4Tools) — similar to Sideloadly
 3. **Launch WDA**: use [`go-ios runwda`](https://github.com/danielpaulus/go-ios) via USB
 4. **Run this MCP server**: `python server.py` — works anywhere
-5. **Every 7 days**: open Sideloadly, re-sign and reinstall (~3 minutes)
+5. **Every 7 days**: re-sign with the same tool (~2 minutes, some tools can do it on-phone)
 
 ### Option B: $99/year — fully automated with GitHub Actions
 
