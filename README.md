@@ -169,20 +169,39 @@ The main setup guide assumes macOS + Xcode. If you don't have a Mac, here's what
 
 | Step | Mac required? | Alternative |
 |------|:---:|-------------|
-| Build WDA from source | Yes | One-time only — borrow a Mac, use a friend's, or use [GitHub Actions macOS runners](https://docs.github.com/en/actions/using-github-hosted-runners) to compile in CI |
-| Sign WDA | Yes (Xcode) | **After first build**: re-sign the .ipa on Windows with [Sideloadly](https://sideloadly.io) |
+| Build WDA from source | Yes | One-time — borrow a Mac or use GitHub Actions (free macOS runners) |
+| Sign WDA | Yes (Xcode) | Re-sign the .ipa on Windows with [Sideloadly](https://sideloadly.io) |
 | Install WDA on iPhone | No | `ideviceinstaller`, `go-ios install`, or Sideloadly (all cross-platform) |
 | Launch WDA on iPhone | No | [`go-ios runwda`](https://github.com/danielpaulus/go-ios) works on Linux/Windows |
 | Control via HTTP | No | Any platform — it's just REST calls to port 8100 |
-| 7-day certificate renewal | No | Re-sign with Sideloadly on Windows, or pay $99/year for a 1-year certificate |
+| 7-day certificate renewal | No | Re-sign with Sideloadly, or pay $99/year for a 1-year certificate |
 
-### The practical recipe
+### Option A: Free — borrow a Mac + Sideloadly (easiest)
 
-1. **One-time on a Mac** (or macOS CI): build WDA with Xcode, save the `.ipa`
-2. **On Windows/Linux**: install the `.ipa` with [Sideloadly](https://sideloadly.io) or [`ideviceinstaller`](https://github.com/libimobiledevice/ideviceinstaller)
-3. **Launch WDA**: use [`go-ios runwda`](https://github.com/danielpaulus/go-ios) — works on Linux/Windows via USB
+1. **One-time on any Mac**: build WDA with Xcode, save the `.ipa`
+2. **On Windows**: install [Sideloadly](https://sideloadly.io), sign and install the `.ipa` with your free Apple ID
+3. **Launch WDA**: use [`go-ios runwda`](https://github.com/danielpaulus/go-ios) via USB
 4. **Run this MCP server**: `python server.py` — works anywhere
-5. **Renewal**: re-sign with Sideloadly every 7 days (free account) or skip renewal entirely with a [$99/year Apple Developer account](https://developer.apple.com/programs/)
+5. **Every 7 days**: open Sideloadly, re-sign and reinstall (~3 minutes)
+
+### Option B: $99/year — fully automated with GitHub Actions
+
+With a [$99/year Apple Developer account](https://developer.apple.com/programs/), you get a 1-year certificate and API Key access — no 2FA needed in CI, no manual renewal.
+
+1. Fork this repo
+2. Add your signing credentials to GitHub repo **Settings → Secrets**:
+   - `APPLE_CERTIFICATE_P12` — base64-encoded .p12 certificate
+   - `APPLE_CERTIFICATE_PASSWORD` — certificate password
+   - `APPLE_PROVISIONING_PROFILE` — base64-encoded .mobileprovision
+   - `DEVICE_UDID` — your iPhone's UDID
+3. The included workflow (`.github/workflows/renew.yml`) runs every 6 days on GitHub's free macOS runner, builds a fresh WDA, and uploads it to Releases
+4. Download and install — or connect your Windows/Linux machine to auto-pull from Releases
+
+> **Why can't free accounts use GitHub Actions?** Free Apple ID certificates require 2FA on every login. CI can't type the verification code sent to your phone. The $99 account has an API Key that bypasses this entirely.
+
+### What about buying a third-party certificate?
+
+You might see services selling enterprise certificates (企业签名) or "super signing" (超级签名) online. **These do not work for WDA.** WDA is an XCUITest runner, not a regular app — it requires a development-type provisioning profile with your device's UDID. Enterprise certificates use in-house distribution, which the xctest launcher rejects. Don't waste money on these for WDA.
 
 ### Key tools for non-Mac users
 
