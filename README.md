@@ -135,6 +135,40 @@ WDA-MCP can start and control WDA even when the iPhone is on mobile data — **n
 
 > **Important:** If you turn OFF the WiFi toggle (not just disconnect), iOS kills the WDA process immediately. Keep the toggle on.
 
+### Tailscale not connecting on mobile data?
+
+If Tailscale works on WiFi but fails on mobile data (connection times out or gets refused), your carrier network may be blocking the WireGuard protocol that Tailscale uses for direct connections.
+
+**Fix: set up a custom DERP relay server.** DERP is Tailscale's built-in relay — when direct connections are blocked, traffic goes through DERP instead.
+
+1. Deploy a DERP server on a VPS that your mobile network can reach:
+   ```bash
+   # On your VPS
+   go install tailscale.com/cmd/derper@latest
+   derper --hostname=your-derp.example.com --verify-clients
+   ```
+
+2. Add it to your Tailscale ACL (in the [admin console](https://login.tailscale.com/admin/acls)):
+   ```json
+   "derpMap": {
+     "Regions": {
+       "900": {
+         "RegionID": 900,
+         "RegionCode": "myrelay",
+         "Nodes": [{
+           "Name": "my-derp",
+           "RegionID": 900,
+           "HostName": "your-derp.example.com"
+         }]
+       }
+     }
+   }
+   ```
+
+3. Optionally disable Tailscale's default DERP servers if they're also blocked — set `"OmitDefaultRegions": true` in the derpMap.
+
+After this, mobile data traffic routes through your DERP server and everything works — WDA remote start, screenshots, control, all of it. No code changes needed.
+
 ## Using with claude.ai (Chat Mode)
 
 The most fun way to use WDA-MCP is through **chat** — talking to Claude naturally and having it control your phone. "Go check my messages", "screenshot my home screen", "open the red app on the second page" — all in conversation.
