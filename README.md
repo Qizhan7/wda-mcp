@@ -141,7 +141,7 @@ If Tailscale works on WiFi but fails on mobile data (connection times out or get
 
 **Fix: set up a custom DERP relay server.** DERP is Tailscale's built-in relay — when direct connections are blocked, traffic goes through DERP instead.
 
-1. Deploy a DERP server on a VPS that your mobile network can reach:
+1. Deploy a DERP server on any machine reachable from your mobile network (a VPS, or your Mac with port forwarding / Cloudflare Tunnel):
    ```bash
    # On your VPS
    go install tailscale.com/cmd/derper@latest
