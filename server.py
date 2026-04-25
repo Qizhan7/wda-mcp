@@ -14,6 +14,7 @@ mcp = FastMCP("wda-mcp")
 
 WDA_TAILSCALE_IP = os.environ.get("WDA_TAILSCALE_IP", "")
 WDA_DEVICE_ID = os.environ.get("WDA_DEVICE_ID", "")
+WDA_BUNDLE_ID = os.environ.get("WDA_BUNDLE_ID", "com.example.WebDriverAgentRunner.xctrunner")
 WDA_PROJECT_DIR = os.environ.get("WDA_PROJECT_DIR", os.path.expanduser("~/Desktop/WebDriverAgent"))
 SCREENSHOTS_DIR = os.environ.get("WDA_SCREENSHOTS_DIR", os.path.expanduser("~/screenshots"))
 
@@ -177,16 +178,94 @@ def wda_source() -> str:
     return src
 
 
+def _patch_pymobiledevice3_dtx():
+    """Patch pymobiledevice3 to register XCTest services early (fixes xcuitest over RSD tunnels).
+    See: https://github.com/doronz88/pymobiledevice3/pull/1665"""
+    import site, pathlib
+    for base in site.getsitepackages() + [site.getusersitepackages()]:
+        target = pathlib.Path(base) / "pymobiledevice3/services/dvt/testmanaged/xcuitest.py"
+        if not target.exists():
+            continue
+        code = target.read_text()
+        if "REGISTER_SERVICES" in code:
+            return
+        old = '    OLD_SERVICE_NAME = "com.apple.testmanagerd.lockdown"'
+        new = (
+            '    OLD_SERVICE_NAME = "com.apple.testmanagerd.lockdown"\n'
+            '    REGISTER_SERVICES = (\n'
+            '        XCTestManager_IDEInterface,\n'
+            '        XCTestManager_DaemonConnectionInterface,\n'
+            '        XCTestDriverInterface,\n'
+            '    )'
+        )
+        target.write_text(code.replace(old, new))
+        return
+
+
 @mcp.tool()
 def wda_start() -> str:
-    """Start/restart WDA service on iPhone."""
+    """Start/restart WDA service on iPhone. Tries remote (Tailscale) first, falls back to local xcodebuild."""
     global _wda_base, _wda_session_id
     _wda_base = None
     _wda_session_id = None
-    subprocess.run(["pkill", "-f", "xcodebuild.*test-without-building"], capture_output=True)
+    subprocess.run(["pkill", "-f", "xcodebuild.*test"], capture_output=True)
+    subprocess.run(["pkill", "-f", "pymobiledevice3.*xcuitest"], capture_output=True)
+
+    if WDA_TAILSCALE_IP:
+        import socket
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(3)
+            s.connect((WDA_TAILSCALE_IP, 49152))
+            s.close()
+
+            _patch_pymobiledevice3_dtx()
+
+            tunnel_script = f"""
+import asyncio
+async def main():
+    from pymobiledevice3.remote.tunnel_service import (
+        create_core_device_tunnel_service_using_remotepairing,
+        start_tunnel, TunnelProtocol,
+    )
+    svc = await create_core_device_tunnel_service_using_remotepairing(
+        "{WDA_DEVICE_ID}", "{WDA_TAILSCALE_IP}", 49152)
+    async with start_tunnel(svc, protocol=TunnelProtocol.TCP) as t:
+        with open("/tmp/wda_tunnel.txt", "w") as f:
+            f.write(f"{{t.address}} {{t.port}}")
+        await asyncio.sleep(999999)
+asyncio.run(main())
+"""
+            subprocess.Popen(
+                ["sudo", "-S", "python3.13", "-c", tunnel_script],
+                stdin=subprocess.DEVNULL,
+                stdout=open("/tmp/wda_tunnel.log", "w"), stderr=subprocess.STDOUT
+            )
+            for _ in range(30):
+                time.sleep(1)
+                try:
+                    with open("/tmp/wda_tunnel.txt") as f:
+                        addr, port = f.read().strip().split()
+                    break
+                except Exception:
+                    continue
+            else:
+                return "Tunnel creation timed out. Ensure sudo is passwordless or try again."
+
+            xcuitest_cmd = (
+                f"python3.12 -m pymobiledevice3 developer dvt xcuitest "
+                f"--rsd {addr} {port} {WDA_BUNDLE_ID} "
+                f"--env USE_PORT=8100 --env MJPEG_SERVER_PORT=9100"
+            )
+            subprocess.Popen(xcuitest_cmd, shell=True,
+                             stdout=open("/tmp/wda_run.log", "w"), stderr=subprocess.STDOUT)
+            return f"WDA starting via Tailscale tunnel ({addr}:{port}). Check wda_status() in ~15 seconds."
+        except (socket.error, OSError):
+            pass
+
     cmd = f"cd {WDA_PROJECT_DIR} && nohup xcodebuild test-without-building -project WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner -destination 'id={WDA_DEVICE_ID}' > /tmp/wda_run.log 2>&1 &"
     subprocess.Popen(cmd, shell=True)
-    return "WDA starting in background. Check wda_status() in ~15 seconds."
+    return "WDA starting via xcodebuild (local). Check wda_status() in ~15 seconds."
 
 
 @mcp.tool()
