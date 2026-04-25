@@ -1,3 +1,5 @@
+[中文版 README](README_CN.md)
+
 # WDA MCP — Remote iPhone Control for AI
 
 A standalone [MCP](https://modelcontextprotocol.io) server that lets AI agents control a physical iPhone over the network. Built on Apple's [WebDriverAgent](https://github.com/appium/WebDriverAgent) and optionally [Tailscale](https://tailscale.com) for secure remote access from anywhere — not just your LAN.

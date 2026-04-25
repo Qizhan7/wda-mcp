@@ -1,0 +1,279 @@
+[English README](README.md)
+
+# WDA MCP — 用 AI 远程控制 iPhone
+
+一个独立的 [MCP](https://modelcontextprotocol.io) 服务器，让 AI 通过网络控制你的 iPhone。基于 Apple 的 [WebDriverAgent](https://github.com/appium/WebDriverAgent)，配合 [Tailscale](https://tailscale.com) 实现从任何地方远程控制——不限于局域网。
+
+点击按钮、滑动屏幕、截图、输入文字、查看 UI 元素——全部通过自然语言完成。支持 **Claude Code**（命令行）、**claude.ai**（网页聊天）和 **Claude Desktop**。
+
+## 工具列表
+
+| 工具 | 功能 |
+|------|------|
+| `wda_status` | 检查 WDA 运行状态，返回 iOS 版本、IP、就绪状态 |
+| `wda_screenshot` | 截取 iPhone 屏幕，返回 PNG 文件路径 |
+| `wda_tap` | 点击屏幕某个坐标（x, y，单位是 point） |
+| `wda_swipe` | 在两点之间滑动，可配置持续时间 |
+| `wda_type` | 在当前输入框输入文字 |
+| `wda_home` | 回到主屏幕（上滑手势，Face ID 机型） |
+| `wda_source` | 获取当前屏幕的 UI 元素树（XML，包含标签和坐标） |
+| `wda_start` | 启动或重启 WDA 服务 |
+| `wda_renew` | 重新编译 WDA 以续签 7 天免费证书 |
+
+## 前置条件
+
+- **macOS** + Xcode
+- **iPhone**：首次设置需要 USB，之后可以用 Tailscale 远程
+- **Python 3.12+** + `mcp[cli]`
+- **Python 3.13**（远程启动需要，TCP tunnel 依赖 Python 3.13 的 SSL PSK 支持）
+- **[pymobiledevice3](https://github.com/doronz88/pymobiledevice3)**：Python 3.12 和 3.13 都需要安装
+- 免费 Apple 开发者账号（用于代码签名）
+
+## 快速开始
+
+### 1. 安装依赖
+
+```bash
+pip install "mcp[cli]"
+brew install python@3.13
+python3.12 -m pip install pymobiledevice3
+python3.13 -m pip install --break-system-packages pymobiledevice3
+```
+
+### 2. 克隆并编译 WebDriverAgent
+
+```bash
+git clone https://github.com/appium/WebDriverAgent.git ~/Desktop/WebDriverAgent
+cd ~/Desktop/WebDriverAgent
+```
+
+> ⚠️ **需要手动操作** — 免费 Apple ID 无法完全自动化这一步。需要在 Xcode 中手动配置签名。
+
+在 Xcode 中打开 `WebDriverAgent.xcodeproj`：
+- 选择 **WebDriverAgentRunner** target
+- 在 **Signing & Capabilities** 中选择你的 Apple ID 团队
+- 设置一个唯一的 **Bundle Identifier**（例如 `com.你的名字.WebDriverAgentRunner`）
+- 编译：
+
+```bash
+xcodebuild build-for-testing \
+    -project WebDriverAgent.xcodeproj \
+    -scheme WebDriverAgentRunner \
+    -destination "id=$(xcrun xctrace list devices | grep iPhone | head -1 | grep -oE '[A-F0-9-]{25,}')" \
+    -allowProvisioningUpdates
+```
+
+### 3. 在 iPhone 上信任证书
+
+进入 **设置 → 通用 → VPN与设备管理**，信任开发者证书。
+
+### 4. 配置环境变量
+
+```bash
+cp config.example.env .env
+# 编辑 .env，填入你的设备 UDID 和 Tailscale IP
+```
+
+查看设备 UDID：
+```bash
+xcrun xctrace list devices
+```
+
+### 5. 运行服务器
+
+```bash
+# stdio 模式（Claude Code / MCP 客户端）
+python server.py
+
+# HTTP 模式（端口 8200）
+python server.py --http
+```
+
+### 6. 添加到 Claude Code
+
+在 `.mcp.json` 中添加：
+```json
+{
+  "mcpServers": {
+    "wda": {
+      "command": "python",
+      "args": ["/path/to/wda-mcp/server.py"],
+      "env": {
+        "WDA_TAILSCALE_IP": "100.x.x.x",
+        "WDA_DEVICE_ID": "你的设备UDID",
+        "WDA_BUNDLE_ID": "com.你的名字.WebDriverAgentRunner.xctrunner"
+      }
+    }
+  }
+}
+```
+
+## 通过 Tailscale 远程访问
+
+从任何地方控制你的 iPhone（不限局域网）：
+
+1. 在 Mac 和 iPhone 上都安装 [Tailscale](https://tailscale.com)
+2. 记下 iPhone 的 Tailscale IP（例如 `100.71.146.51`）
+3. 在 `.env` 或 MCP 配置中设置 `WDA_TAILSCALE_IP`
+4. WDA-MCP 会优先尝试 Tailscale IP，失败则回退到局域网发现
+
+### 5G / 移动数据支持
+
+WDA-MCP 可以在 iPhone 使用移动数据时启动和控制 WDA——**不需要 USB，不需要同一网络**。`wda_start()` 会自动：
+
+1. 通过 Tailscale 检测 iPhone 的 RemotePairing 服务
+2. 使用 `pymobiledevice3` 创建 TCP tunnel（需要 Python 3.13 + sudo）
+3. 通过 tunnel 启动 WDA
+4. 自动修补 pymobiledevice3 的一个 [DTX 时序问题](https://github.com/doronz88/pymobiledevice3/pull/1665)
+
+**远程启动的要求：**
+- iPhone 的 WiFi 开关必须打开（不需要连接任何网络——只要开关是开着的就行）
+- 两台设备都运行 Tailscale
+- Mac 需要 sudo 权限（创建 tunnel 需要 root 来建立 utun 网络接口）
+- Python 3.13 + pymobiledevice3
+
+**典型使用流程：**
+1. 在家：iPhone 连着 WiFi → `wda_start()` 通过 Tailscale tunnel 启动 WDA
+2. 出门：iPhone 离开 WiFi 范围（但 WiFi 开关还开着）→ WDA 继续运行
+3. 在外面：通过 5G + Tailscale 从任何地方控制手机
+
+> **⚠️ WiFi 开关 vs. WiFi 断开连接——这很重要！**
+>
+> iPhone 上有**两种不同的方式**来"关闭 WiFi"，它们对 WDA 的影响完全不同：
+>
+> **✅ 安全 — 断开网络连接（WDA 继续运行）：**
+> - 设置 → WiFi → 点击已连接的网络 → "忽略此网络"或断开连接
+> - 或者直接走出 WiFi 范围——iPhone 自动断开
+> - 或者下拉控制中心 → 点击 WiFi 图标（这只是断开连接，不会关闭 WiFi）
+> - WiFi 开关保持打开（设置中的图标仍然是绿色的）
+> - WDA 继续运行，Tailscale 保持连接，一切正常
+>
+> **❌ 会杀死 WDA — 关闭 WiFi 开关：**
+> - 设置 → WiFi → 把绿色开关翻到关闭
+> - WiFi 开关变灰
+> - iOS 立即杀死所有开发者进程，包括 WDA（约 5 秒）
+> - 没有已知的解决方法——这是 iOS 系统级的限制
+>
+> **总结：WiFi 开关保持打开就行。** 不需要连接任何网络——只是别关掉那个开关。大多数人日常使用中本来就不会关 WiFi 开关，所以这不是问题。
+
+### 移动数据下 Tailscale 连不上？
+
+如果 Tailscale 在 WiFi 下能用，但在移动数据下不行（连接超时或被拒绝），可能是你的运营商网络阻断了 Tailscale 使用的 WireGuard 协议。
+
+**解决方案：搭建自定义 DERP 中继服务器。** DERP 是 Tailscale 内置的中继——当直连被阻断时，流量会走 DERP 中转。
+
+1. 在一台移动网络能访问到的服务器上部署 DERP（VPS，或者有端口转发 / Cloudflare Tunnel 的 Mac）：
+   ```bash
+   go install tailscale.com/cmd/derper@latest
+   derper --hostname=your-derp.example.com --verify-clients
+   ```
+
+2. 在 Tailscale [管理控制台](https://login.tailscale.com/admin/acls) 的 ACL 中添加：
+   ```json
+   "derpMap": {
+     "Regions": {
+       "900": {
+         "RegionID": 900,
+         "RegionCode": "myrelay",
+         "Nodes": [{
+           "Name": "my-derp",
+           "RegionID": 900,
+           "HostName": "your-derp.example.com"
+         }]
+       }
+     }
+   }
+   ```
+
+3. 如果默认的 DERP 服务器也被阻断，可以在 derpMap 中设置 `"OmitDefaultRegions": true`。
+
+设置完成后，移动数据流量通过你的 DERP 服务器中转，一切正常——远程启动 WDA、截图、控制，全部可用。不需要改代码。
+
+## 在 claude.ai 中使用（聊天模式）
+
+最有趣的用法是通过**聊天**——用自然语言跟 Claude 说话，让它控制你的手机。"帮我看看微信消息"、"截个图"、"打开第二页那个红色 app"——全在对话中完成。
+
+需要 **HTTP 模式**，因为 claude.ai 需要通过网络访问你的 MCP 服务器。
+
+### 方案 A：ngrok（最快，免费）
+
+```bash
+brew install ngrok
+python server.py --http --port 8200 &
+ngrok http 8200
+```
+
+ngrok 会给你一个公网 URL（如 `https://abc123.ngrok.io`），在 claude.ai 设置中添加为 MCP 服务器。
+
+### 方案 B：Cloudflare Tunnel（稳定，免费，可用自定义域名）
+
+```bash
+brew install cloudflare/cloudflare/cloudflared
+cloudflared tunnel login
+cloudflared tunnel create wda-mcp
+python server.py --http --port 8200 &
+cloudflared tunnel --url http://localhost:8200
+```
+
+### 添加到 claude.ai
+
+1. 打开 claude.ai → 设置 → MCP 服务器
+2. 用你的公网 URL（ngrok 或 Cloudflare）添加新服务器
+3. 把所有 WDA 工具设为"始终允许"
+
+## 自动续签
+
+免费 Apple 开发者证书 7 天过期。设置自动续签：
+
+```bash
+crontab -e
+0 3 */6 * * cd ~/Desktop/wda-mcp && bash scripts/renew_wda.sh >> /tmp/wda_renew.log 2>&1
+```
+
+## 架构
+
+```
+┌──────────────────┐     MCP (stdio/HTTP)     ┌──────────────────┐
+│   AI 代理         │◄────────────────────────►│   wda-mcp        │
+│ (Claude Code)    │                          │   server.py      │
+└──────────────────┘                          └────────┬─────────┘
+                                                       │ HTTP :8100
+                                              ┌────────▼─────────┐
+                                              │  WebDriverAgent  │
+                                              │  (iPhone 上)      │
+                                              └────────┬─────────┘
+                                                       │
+                                              ┌────────▼─────────┐
+                                              │  iPhone 屏幕      │
+                                              │  点击/滑动/输入    │
+                                              └──────────────────┘
+
+         网络选项：
+         ├─ USB（仅本地）
+         ├─ WiFi 局域网（同一网络）
+         └─ Tailscale VPN（任何地方——WiFi、5G、任何网络）
+```
+
+## 常见问题
+
+**Q：需要付费 Apple 开发者账号吗？**
+A：不需要。免费账号就行，但每 7 天需要重新签名（用 `wda_renew` 或 cron 脚本）。
+
+**Q：支持哪些 iPhone？**
+A：支持 WebDriverAgent 的所有 iPhone——一般是 iPhone 6s 及以后的机型。
+
+**Q：截图坐标对不上？**
+A：WDA 用的是 **points**，不是像素。iPhone 14 Pro 是 393×852 points。用 `wda_source` 获取精确坐标。
+
+**Q：WDA 一直断开？**
+A：确保 iPhone 不会自动锁屏。设置 → 显示与亮度 → 自动锁定 → 永不。
+
+**Q：可以不用 Tailscale 吗？**
+A：可以。WDA-MCP 会回退到局域网 IP 发现。Tailscale 只是增加了远程访问能力。
+
+## 致谢
+
+- [WebDriverAgent](https://github.com/appium/WebDriverAgent) — Facebook/Appium 的 iOS 自动化框架
+- [pymobiledevice3](https://github.com/doronz88/pymobiledevice3) — iOS 设备通信的 Python 库
+- [Tailscale](https://tailscale.com) — 零配置 mesh VPN
+- [Model Context Protocol](https://modelcontextprotocol.io) — Anthropic 的 AI 工具调用开放协议
