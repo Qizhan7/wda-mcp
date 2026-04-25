@@ -22,7 +22,9 @@ Tap buttons, swipe through apps, take screenshots, type text, and inspect UI ele
 
 - **macOS** with Xcode installed
 - **iPhone** connected via USB (for initial setup) or Tailscale (for remote)
-- **Python 3.10+** with `mcp[cli]` installed
+- **Python 3.12+** with `mcp[cli]` installed
+- **Python 3.13** (for remote start via Tailscale — the TCP tunnel requires Python 3.13's SSL PSK support)
+- **[pymobiledevice3](https://github.com/doronz88/pymobiledevice3)** installed on both Python 3.12 and 3.13
 - A free Apple Developer account (for code signing)
 
 ## Quick Setup
@@ -94,7 +96,8 @@ Add to your `.mcp.json`:
       "args": ["/path/to/wda-mcp/server.py"],
       "env": {
         "WDA_TAILSCALE_IP": "100.x.x.x",
-        "WDA_DEVICE_ID": "your-device-udid"
+        "WDA_DEVICE_ID": "your-device-udid",
+        "WDA_BUNDLE_ID": "com.yourname.WebDriverAgentRunner.xctrunner"
       }
     }
   }
@@ -107,10 +110,30 @@ To control your iPhone from anywhere (not just your local network):
 
 1. Install [Tailscale](https://tailscale.com) on both your Mac and iPhone
 2. Note the iPhone's Tailscale IP (e.g. `100.71.146.51`)
-3. Set `WDA_TAILSCALE_IP` in your `.env`
+3. Set `WDA_TAILSCALE_IP` in your `.env` or MCP config
 4. WDA-MCP will try the Tailscale IP first, then fall back to LAN discovery
 
-This means the AI can control the phone even when it's on mobile data — no port forwarding needed.
+### 5G / Mobile Data Support
+
+WDA-MCP can start and control WDA even when the iPhone is on mobile data — **no USB, no same network required**. The `wda_start()` tool automatically:
+
+1. Detects the iPhone's RemotePairing service via Tailscale
+2. Creates a TCP tunnel using `pymobiledevice3` (requires Python 3.13 + sudo)
+3. Launches WDA through the tunnel
+4. Auto-patches pymobiledevice3 to fix a [DTX timing issue](https://github.com/doronz88/pymobiledevice3/pull/1665) with RSD tunnels
+
+**Requirements for remote start:**
+- iPhone WiFi toggle must be ON (it doesn't need to be connected to any network — just the toggle)
+- Tailscale running on both devices
+- `sudo` access on the Mac (tunnel creation requires root for the utun interface)
+- Python 3.13 with pymobiledevice3: `brew install python@3.13 && python3.13 -m pip install pymobiledevice3`
+
+**Typical workflow:**
+1. At home: iPhone on WiFi → `wda_start()` launches WDA via Tailscale tunnel
+2. Leave home: iPhone disconnects from WiFi (but toggle stays on) → WDA keeps running
+3. On the go: control iPhone via 5G + Tailscale from anywhere
+
+> **Important:** If you turn OFF the WiFi toggle (not just disconnect), iOS kills the WDA process immediately. Keep the toggle on.
 
 ## Using with claude.ai (Chat Mode)
 
@@ -191,7 +214,7 @@ crontab -e
          Network options:
          ├─ USB (local only)
          ├─ LAN Wi-Fi (same network)
-         └─ Tailscale (anywhere with internet)
+         └─ Tailscale VPN (anywhere — WiFi, 5G, any network)
 ```
 
 ## FAQ
