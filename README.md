@@ -320,7 +320,7 @@ First-time WDA compilation still requires a Mac + Xcode. After that, VPS handles
 
 ### Network Environment
 
-> **WiFi direct connection fails (No route to host)?** Your router may have **AP isolation** enabled — this blocks devices on the same WiFi from communicating. Common on Chinese routers (Huawei/Xiaomi/carrier-provided). Fix: disable "AP Isolation" / "Client Isolation" in router settings. Or use Tailscale IP instead of WiFi IP to bypass it.
+> **WiFi direct connection fails (No route to host)?** Check two things: **(1)** Are Mac and iPhone on the **same WiFi SSID**? Many routers have separate 2.4G and 5G networks on different subnets — make sure both devices connect to the same one. **(2)** Is **AP isolation** enabled? Some routers block devices on the same WiFi from communicating. Fix: disable "AP Isolation" / "Client Isolation" in router settings. Or use Tailscale IP to bypass both issues.
 
 > **iPhone Tailscale keeps going offline?** Go to iPhone **Settings → General → VPN & Device Management → VPN → Tailscale → enable "Connect On Demand"**. Without this, iOS kills Tailscale in the background.
 

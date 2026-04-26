@@ -325,18 +325,23 @@ python server.py --http
 
 ### 网络环境的坑
 
-> **WiFi 直连不通（No route to host）？可能是路由器 AP 隔离！**
+> **WiFi 直连不通（No route to host）？先检查这两个：**
 >
-> 有些路由器默认开启 AP 隔离（客户端隔离），阻止同一 WiFi 上的设备互相通信。国内路由器（华为/小米/运营商定制）更常见。
+> **1. Mac 和 iPhone 是否在同一网段？**
+> 很多路由器的 2.4G 和 5G WiFi 是不同的 SSID，可能在不同子网。确保 Mac 和 iPhone **连的是同一个 WiFi 名称**。或者在路由器设置里勾选"双频合一"/"启用双频设定为相同的SSID"。
+>
+> **2. 路由器有没有开 AP 隔离？**
+> 有些路由器默认开启 AP 隔离（客户端隔离/终端限制），阻止同一 WiFi 上的设备互相通信。国内路由器（华为/小米/运营商定制）更常见。
 >
 > 检查方法：
 > ```bash
-> ping <iPhone的WiFi IP>  # 如果不通或 No route to host → AP 隔离
+> ping <iPhone的WiFi IP>  # 不通 → 网段不同或 AP 隔离
 > ```
 >
 > 解决方案：
-> - **最佳**：登录路由器后台 → 关闭"AP隔离"/"客户端隔离"/"Wireless Isolation"
-> - **绕过**：用 Tailscale IP（100.x.x.x）代替 WiFi IP，AP 隔离只阻挡 WiFi 直连不影响 VPN
+> - 确认两个设备连同一个 SSID（同频段）
+> - 登录路由器后台 → 关闭"AP隔离"/"客户端隔离"/"启用终端限制"
+> - **绕过**：用 Tailscale IP（100.x.x.x）代替 WiFi IP
 
 > **iPhone 的 Tailscale 经常掉线 / 显示 offline？**
 >
