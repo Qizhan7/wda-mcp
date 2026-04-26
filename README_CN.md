@@ -323,6 +323,27 @@ python server.py --http
 
 ## ⚠️ 容易踩的坑
 
+### 网络环境的坑
+
+> **WiFi 直连不通（No route to host）？可能是路由器 AP 隔离！**
+>
+> 有些路由器默认开启 AP 隔离（客户端隔离），阻止同一 WiFi 上的设备互相通信。国内路由器（华为/小米/运营商定制）更常见。
+>
+> 检查方法：
+> ```bash
+> ping <iPhone的WiFi IP>  # 如果不通或 No route to host → AP 隔离
+> ```
+>
+> 解决方案：
+> - **最佳**：登录路由器后台 → 关闭"AP隔离"/"客户端隔离"/"Wireless Isolation"
+> - **绕过**：用 Tailscale IP（100.x.x.x）代替 WiFi IP，AP 隔离只阻挡 WiFi 直连不影响 VPN
+
+> **iPhone 的 Tailscale 经常掉线 / 显示 offline？**
+>
+> 去 iPhone **设置 → 通用 → VPN与设备管理 → VPN → Tailscale → 开启"按需连接"（Connect On Demand）**。
+>
+> 不开这个的话，iOS 会在后台杀掉 Tailscale，导致 Tailscale 掉线。开了之后会自动重连。
+
 ### WiFi 无线调试的坑
 
 > **用 xcodebuild 启动的 WDA 不能通过 tunnel 访问！**

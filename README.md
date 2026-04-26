@@ -318,6 +318,12 @@ First-time WDA compilation still requires a Mac + Xcode. After that, VPS handles
 
 ## Common Pitfalls
 
+### Network Environment
+
+> **WiFi direct connection fails (No route to host)?** Your router may have **AP isolation** enabled — this blocks devices on the same WiFi from communicating. Common on Chinese routers (Huawei/Xiaomi/carrier-provided). Fix: disable "AP Isolation" / "Client Isolation" in router settings. Or use Tailscale IP instead of WiFi IP to bypass it.
+
+> **iPhone Tailscale keeps going offline?** Go to iPhone **Settings → General → VPN & Device Management → VPN → Tailscale → enable "Connect On Demand"**. Without this, iOS kills Tailscale in the background.
+
 ### WiFi / Wireless Debugging
 
 > **WDA started via xcodebuild is NOT accessible through the tunnel!** Use `pymobiledevice3 developer dvt xcuitest --rsd` to launch WDA — this exposes WDA's port through the tunnel. xcodebuild launches WDA on the phone's WiFi IP which is not routed through the tunnel.
