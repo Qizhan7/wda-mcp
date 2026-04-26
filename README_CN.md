@@ -239,6 +239,64 @@ crontab -e
 0 3 */6 * * cd ~/Desktop/wda-mcp && bash scripts/renew_wda.sh >> /tmp/wda_renew.log 2>&1
 ```
 
+## VPS 部署方案（不需要 Mac 一直开着）
+
+把 wda-mcp 部署到 VPS 上，Mac 只在第一次编译 WDA 时用一次，之后就不需要了。
+
+```
+┌──────────┐         ┌──────────────────────────┐         ┌──────────┐
+│  Claude  │──HTTP──→│         VPS              │←Tailscale→│  iPhone  │
+│ (任何地方) │         │  wda-mcp (MCP server)    │          │  WDA     │
+└──────────┘         │  pymobiledevice3         │          │  Tailscale│
+                     │  Tailscale (exit node)   │          └──────────┘
+                     └──────────────────────────┘
+```
+
+**VPS 同时承担三个角色：**
+1. **MCP 服务器** — Claude 连这里操控手机
+2. **Tailscale 节点** — 通过 Tailscale 连到 iPhone
+3. **Exit node**（可选）— 中国用户可以用它替代 Shadowrocket 翻墙，解决 VPN 冲突
+
+### VPS 上的安装步骤
+
+```bash
+# 1. 安装 Tailscale
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up --advertise-exit-node  # 开启 exit node（可选）
+
+# 2. 安装 Python 3.13
+# Ubuntu/Debian:
+sudo apt install python3.13 python3.13-venv
+# 或用 pyenv: pyenv install 3.13
+
+# 3. 安装 wda-mcp
+git clone https://github.com/Qizhan7/wda-mcp.git
+cd wda-mcp
+pip install "mcp[cli]"
+pip install pymobiledevice3
+
+# 4. 打 DTX patch
+sudo python3 scripts/patch_pymobiledevice3.py
+
+# 5. 启动 MCP 服务器（HTTP 模式，对外提供服务）
+WDA_TAILSCALE_IP=<iPhone的Tailscale IP> \
+WDA_DEVICE_ID=<设备UDID> \
+WDA_BUNDLE_ID=<WDA Bundle ID> \
+python server.py --http
+```
+
+### iPhone 端设置
+
+1. 安装 Tailscale，加入和 VPS 同一个 Tailscale 网络
+2. （可选）在 Tailscale app 里选择 VPS 作为 exit node → 替代 Shadowrocket 翻墙
+3. 保持 WiFi 按钮蓝色（开着）
+
+### WDA 首次编译（唯一需要 Mac 的地方）
+
+在 Mac 上用 Xcode 编译并安装 WDA 到 iPhone（只需要做一次）。之后 VPS 可以远程启动/控制 WDA，Mac 不用再开。
+
+每 7 天需要续签证书：可以在 Mac 上手动跑 `wda_renew`，或者用 GitHub Actions 自动续签（见下面 "没有 Mac" 部分）。
+
 ## 架构
 
 ```

@@ -253,6 +253,45 @@ crontab -e
 0 3 */6 * * cd ~/Desktop/wda-mcp && bash scripts/renew_wda.sh >> /tmp/wda_renew.log 2>&1
 ```
 
+## VPS Deployment (no Mac needed after initial setup)
+
+Deploy wda-mcp on a VPS. Mac is only needed once to compile WDA.
+
+```
+┌──────────┐         ┌──────────────────────────┐         ┌──────────┐
+│  Claude  │──HTTP──→│         VPS              │←Tailscale→│  iPhone  │
+│(anywhere)│         │  wda-mcp (MCP server)    │          │  WDA     │
+└──────────┘         │  pymobiledevice3         │          │  Tailscale│
+                     │  Tailscale (exit node)   │          └──────────┘
+                     └──────────────────────────┘
+```
+
+The VPS handles three roles:
+1. **MCP server** — Claude connects here
+2. **Tailscale node** — reaches iPhone via Tailscale
+3. **Exit node** (optional) — can replace Shadowrocket for users who need VPN + WDA simultaneously
+
+### Setup on VPS
+
+```bash
+# Tailscale
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up --advertise-exit-node
+
+# Python 3.13 + wda-mcp
+git clone https://github.com/Qizhan7/wda-mcp.git && cd wda-mcp
+pip install "mcp[cli]" pymobiledevice3
+sudo python3 scripts/patch_pymobiledevice3.py
+
+# Run
+WDA_TAILSCALE_IP=<iPhone Tailscale IP> \
+WDA_DEVICE_ID=<UDID> \
+WDA_BUNDLE_ID=<Bundle ID> \
+python server.py --http
+```
+
+First-time WDA compilation still requires a Mac + Xcode. After that, VPS handles everything.
+
 ## Architecture
 
 ```
