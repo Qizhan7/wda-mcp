@@ -135,24 +135,31 @@ WDA-MCP can start and control WDA even when the iPhone is on mobile data — **n
 2. Leave home: iPhone disconnects from WiFi (but toggle stays on) → WDA keeps running
 3. On the go: control iPhone via 5G + Tailscale from anywhere
 
-> **⚠️ WiFi toggle vs. WiFi disconnect — this matters!**
+> ### ⚠️ Steps before going out (read carefully!)
 >
-> There are **two different ways** to "turn off WiFi" on iPhone, and they have completely different effects on WDA:
+> **One rule: keep the WiFi button blue (ON). Never turn it off.**
 >
-> **✅ SAFE — Disconnect from network (WDA keeps running):**
-> - Settings → WiFi → tap the connected network → "Forget" or tap the (i) and disconnect
-> - Or just walk out of WiFi range — iPhone auto-disconnects
-> - Or swipe down Control Center → tap the WiFi icon (this only disconnects, does NOT turn off WiFi)
-> - WiFi toggle stays ON (the icon in Settings is still green)
-> - WDA stays alive, Tailscale stays connected, everything works
+> Before leaving home:
+> 1. **Connect to WiFi**, confirm WDA is running (you see the automation screen on your phone)
+> 2. **Turn on mobile data / 5G**
+> 3. **Disconnect from WiFi** — Settings → WiFi → tap current network → "Forget This Network"
+> 4. Make sure **no other WiFi will auto-connect** (turn off "Auto-Join" for saved networks)
+> 5. Leave! WDA keeps running over 5G + Tailscale
 >
-> **❌ KILLS WDA — Turn off WiFi toggle:**
-> - Settings → WiFi → flip the green toggle to OFF
-> - The WiFi toggle turns grey
-> - iOS immediately kills all developer processes including WDA (~5 seconds)
-> - No known workaround — this is an iOS system-level restriction
+> **For daily use it's simpler** — just walk out of WiFi range naturally. As long as you don't manually turn off the WiFi button, WDA stays alive.
 >
-> **TL;DR:** Leave the WiFi toggle ON. You don't need to be connected to any network — just don't flip the switch off. Most people never turn off the WiFi toggle in daily use, so this shouldn't be an issue.
+> ---
+>
+> **Why? The technical reason:**
+>
+> | Action | WiFi button | WDA result |
+> |--------|-----------|-----------|
+> | Disconnect / walk out of range / Control Center tap | 🔵 Blue (ON) | ✅ WDA keeps running |
+> | Settings → flip WiFi toggle OFF | ⚪ Grey (OFF) | ❌ WDA killed in ~5 seconds |
+>
+> iOS treats "WiFi toggle OFF" as a signal to **forcefully terminate all developer processes** including WDA. This is an iOS system-level restriction with no workaround.
+>
+> As long as the WiFi button is blue — even without connecting to any network — iOS leaves WDA alone.
 
 ### Tailscale not connecting on mobile data?
 
