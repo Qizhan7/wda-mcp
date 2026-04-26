@@ -270,6 +270,24 @@ crontab -e
          └─ Tailscale VPN (anywhere — WiFi, 5G, any network)
 ```
 
+## Common Pitfalls
+
+### WiFi / Wireless Debugging
+
+> **WDA started via xcodebuild is NOT accessible through the tunnel!** Use `pymobiledevice3 developer dvt xcuitest --rsd` to launch WDA — this exposes WDA's port through the tunnel. xcodebuild launches WDA on the phone's WiFi IP which is not routed through the tunnel.
+
+> **xcuitest connects then drops after ~20 seconds?** You need to patch pymobiledevice3. Run `sudo python3.12 scripts/patch_pymobiledevice3.py`. See [PR #1665](https://github.com/doronz88/pymobiledevice3/pull/1665).
+
+> **Can't create WiFi tunnel with Python 3.12?** iOS 18.2+ removed QUIC. TCP tunnel requires Python 3.13's SSL PSK support. Use Python 3.13 for the tunnel, Python 3.12 for xcuitest.
+
+> **devicectl shows "connecting"?** Restart remoted: `sudo pkill -9 remoted` — wait 5 seconds.
+
+### 5G / Mobile Data
+
+> **WDA dies when WiFi is turned off?** Don't turn off the WiFi **toggle** (Settings → WiFi → grey switch). Just disconnect from the network or walk out of range. WiFi toggle ON + not connected = WDA stays alive.
+
+> **Can't start WDA on 5G?** Correct — iOS only enables RemotePairing when WiFi is connected. Start WDA at home on WiFi, then go out on 5G. WDA keeps running as long as the WiFi toggle stays on.
+
 ## FAQ
 
 **Q: Do I need a paid Apple Developer account?**

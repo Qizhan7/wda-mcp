@@ -254,6 +254,75 @@ crontab -e
          └─ Tailscale VPN（任何地方——WiFi、5G、任何网络）
 ```
 
+## ⚠️ 容易踩的坑
+
+### WiFi 无线调试的坑
+
+> **用 xcodebuild 启动的 WDA 不能通过 tunnel 访问！**
+>
+> 这是最常见的误区。xcodebuild 启动的 WDA 监听在手机的 WiFi IP 上（如 192.168.1.14:8100），但这个端口**不在 pymobiledevice3 tunnel 的路由里**。
+>
+> **正确做法：用 pymobiledevice3 的 xcuitest 启动 WDA**，这样 WDA 的端口会通过 tunnel 暴露出来：
+> ```bash
+> # ✅ 正确 — WDA 通过 tunnel 可访问
+> python3.12 -m pymobiledevice3 developer dvt xcuitest --rsd <tunnel地址> <端口> <BundleID>
+>
+> # ❌ 错误 — WDA 端口不在 tunnel 路由里
+> xcodebuild test -destination "id=<UDID>" ...
+> ```
+
+> **xcuitest 连上就断（DTX 20 秒超时）？**
+>
+> 这是 pymobiledevice3 的一个 bug——通过 WiFi/远程 tunnel 启动 xcuitest 时，设备发送的 DTX 消息在服务注册之前到达，导致连接中断。
+>
+> **必须打 patch！** 运行项目里的 patch 脚本：
+> ```bash
+> sudo python3.12 scripts/patch_pymobiledevice3.py
+> sudo python3.13 scripts/patch_pymobiledevice3.py
+> ```
+> 这会自动修复。详情见 [PR #1665](https://github.com/doronz88/pymobiledevice3/pull/1665)。
+
+> **Python 3.12 建不了 WiFi tunnel？**
+>
+> iOS 18.2+ 移除了 QUIC 协议支持，TCP tunnel 需要 Python 3.13 的 SSL PSK 功能。
+> ```bash
+> # ❌ Python 3.12 — SSL PSK 不支持，tunnel 建不了
+> sudo python3.12 -m pymobiledevice3 remote start-tunnel -t wifi
+>
+> # ✅ Python 3.13 — 可以
+> sudo python3.13 -m pymobiledevice3 remote start-tunnel -t wifi
+> ```
+> **tunnel 用 Python 3.13 建，xcuitest 用 Python 3.12 跑**——两个版本各管一件事。
+
+> **devicectl 显示 "connecting" 连不上？**
+>
+> 重启 Mac 的 remoted 服务：
+> ```bash
+> sudo pkill -9 remoted
+> # 等 5 秒，设备会变成 "available (paired)"
+> ```
+
+### 5G / 移动数据的坑
+
+> **关了 WiFi 开关 WDA 就死了？**
+>
+> 这是 iOS 的系统限制。**关 WiFi 开关**和**断开 WiFi 连接**是两回事：
+> - 设置里关掉 WiFi 开关（变灰）→ iOS 杀 WDA 进程，约 5 秒死亡
+> - 断开 WiFi 连接 / 走出范围 / 控制中心点一下 WiFi → WDA 不受影响
+>
+> **只要 WiFi 开关保持打开（绿色），WDA 就不会被杀。** 大多数人日常不会关 WiFi 开关。
+
+> **5G 下 Tailscale 连不上？**
+>
+> 运营商可能阻断了 WireGuard 协议。搭建自定义 DERP 中继服务器解决（详见上面的 DERP 部分）。
+
+> **5G 下不能启动 WDA，只能在 WiFi 下启动？**
+>
+> 对。iOS 只在 WiFi 连接时开启 RemotePairing 服务（端口 49152）。启动 WDA 需要这个服务。
+> 但启动后出门（WiFi 断开、开关不关），WDA 继续跑。
+>
+> **典型流程：在家 WiFi 启动 → 出门 5G 继续用。**
+
 ## 常见问题
 
 **Q：需要付费 Apple 开发者账号吗？**
