@@ -233,7 +233,9 @@ def wda_map_apps() -> str:
 def wda_open_app(name: str) -> str:
     """Open an app by name using cached app_map.json. Much faster than searching every time."""
     if not os.path.exists(APP_MAP_FILE):
-        return "No app map found. Run wda_map_apps() first."
+        result = wda_map_apps()
+        if not os.path.exists(APP_MAP_FILE):
+            return f"Auto-scan failed: {result}"
     with open(APP_MAP_FILE) as f:
         app_map = json.load(f)
 
