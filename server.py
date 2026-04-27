@@ -179,6 +179,77 @@ def wda_source() -> str:
 
 
 @mcp.tool()
+def wda_find(text: str) -> str:
+    """Find UI elements matching text. Returns label, type, and tap coordinates. No screenshot needed."""
+    sid = _wda_get_session()
+    r = _wda_request("GET", f"/session/{sid}/source")
+    if "error" in r:
+        return f"Find failed: {r.get('error', 'unknown')}"
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(r.get("value", "<x/>"))
+        matches = []
+        text_lower = text.lower()
+        for elem in root.iter():
+            label = elem.attrib.get("label", "")
+            name = elem.attrib.get("name", "")
+            value = elem.attrib.get("value", "")
+            if text_lower in label.lower() or text_lower in name.lower() or text_lower in value.lower():
+                x = int(elem.attrib.get("x", 0))
+                y = int(elem.attrib.get("y", 0))
+                w = int(elem.attrib.get("width", 0))
+                h = int(elem.attrib.get("height", 0))
+                cx, cy = x + w // 2, y + h // 2
+                matches.append(f"  '{label or name}' ({elem.attrib.get('type', '?')}) → tap({cx}, {cy})")
+        if not matches:
+            return f"No elements matching '{text}'"
+        return f"Found {len(matches)} match(es):\n" + "\n".join(matches[:10])
+    except Exception as e:
+        return f"Parse error: {e}"
+
+
+@mcp.tool()
+def wda_tap_text(text: str) -> str:
+    """Find an element by text and tap it. Combines wda_find + wda_tap in one call."""
+    sid = _wda_get_session()
+    r = _wda_request("GET", f"/session/{sid}/source")
+    if "error" in r:
+        return f"Find failed: {r.get('error', 'unknown')}"
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(r.get("value", "<x/>"))
+        text_lower = text.lower()
+        for elem in root.iter():
+            label = elem.attrib.get("label", "")
+            name = elem.attrib.get("name", "")
+            value = elem.attrib.get("value", "")
+            if text_lower in label.lower() or text_lower in name.lower() or text_lower in value.lower():
+                x = int(elem.attrib.get("x", 0))
+                y = int(elem.attrib.get("y", 0))
+                w = int(elem.attrib.get("width", 0))
+                h = int(elem.attrib.get("height", 0))
+                cx, cy = x + w // 2, y + h // 2
+                tap_r = _wda_request("POST", f"/session/{sid}/actions", {
+                    "actions": [{
+                        "type": "pointer", "id": "finger1",
+                        "parameters": {"pointerType": "touch"},
+                        "actions": [
+                            {"type": "pointerMove", "duration": 0, "x": cx, "y": cy},
+                            {"type": "pointerDown", "button": 0},
+                            {"type": "pause", "duration": 100},
+                            {"type": "pointerUp", "button": 0}
+                        ]
+                    }]
+                })
+                if "error" in tap_r:
+                    return f"Found '{label or name}' but tap failed: {tap_r['error']}"
+                return f"Tapped '{label or name}' at ({cx}, {cy})"
+        return f"No element matching '{text}' found on screen"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool()
 def wda_check() -> str:
     """Quick text-based screen check (no screenshot, saves tokens). Returns current app and visible text."""
     sid = _wda_get_session()
