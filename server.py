@@ -285,7 +285,7 @@ def wda_notifications() -> str:
     _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
         "fromX": 196, "fromY": 5, "toX": 196, "toY": 500, "duration": 0.3
     })
-    time.sleep(1.5)
+    time.sleep(0.5)
     r = _wda_request("GET", f"/session/{sid}/source")
     if "error" in r:
         return f"Failed: {r.get('error')}"
@@ -349,16 +349,16 @@ def wda_launch(name: str) -> str:
     if not _is_home_screen():
         _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration",
                      {"fromX": 196, "fromY": 845, "toX": 196, "toY": 100, "duration": 0.08})
-        time.sleep(1)
+        time.sleep(0.5)
 
     # Pull down for Spotlight search
     _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration",
                  {"fromX": 196, "fromY": 400, "toX": 196, "toY": 600, "duration": 0.3})
-    time.sleep(1)
+    time.sleep(0.5)
 
     # Type app name and tap first result (top match position is consistent)
     _wda_request("POST", f"/session/{sid}/wda/keys", {"value": list(name)})
-    time.sleep(1.5)
+    time.sleep(0.5)
 
     # Tap the top search result icon — Spotlight puts the best match icon at (64, 154)
     _wda_request("POST", f"/session/{sid}/actions", {
@@ -370,7 +370,7 @@ def wda_launch(name: str) -> str:
                          {"type": "pause", "duration": 100},
                          {"type": "pointerUp", "button": 0}]}]
     })
-    time.sleep(1)
+    time.sleep(0.5)
     return f"Launched '{name}' via Spotlight"
 
 
@@ -459,7 +459,7 @@ def wda_tap_text(text: str) -> str:
                 return f"Tapped '{label or name}' at ({cx}, {cy})"
             # Not found — wait and retry
             if attempt < 2:
-                time.sleep(1.5)
+                time.sleep(0.5)
                 continue
             return f"No element matching '{text}' found on screen (tried 3 times)"
         except Exception as e:
@@ -561,7 +561,7 @@ asyncio.run(main())
                 stdout=open("/tmp/wda_tunnel.log", "w"), stderr=subprocess.STDOUT
             )
             for _ in range(30):
-                time.sleep(1)
+                time.sleep(0.5)
                 try:
                     with open("/tmp/wda_tunnel.txt") as f:
                         addr, port = f.read().strip().split()
