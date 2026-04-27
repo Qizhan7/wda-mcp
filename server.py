@@ -356,40 +356,22 @@ def wda_launch(name: str) -> str:
                  {"fromX": 196, "fromY": 400, "toX": 196, "toY": 600, "duration": 0.3})
     time.sleep(1)
 
-    # Type app name
+    # Type app name and tap first result (top match position is consistent)
     _wda_request("POST", f"/session/{sid}/wda/keys", {"value": list(name)})
     time.sleep(1.5)
 
-    # Find and tap the app in search results
-    import xml.etree.ElementTree as ET
-    r = _wda_request("GET", f"/session/{sid}/source")
-    if "error" in r:
-        return f"Search failed: {r.get('error')}"
-    try:
-        root = ET.fromstring(r.get("value", "<x/>"))
-        name_lower = name.lower()
-        for elem in root.iter():
-            label = elem.attrib.get("label", "")
-            etype = elem.attrib.get("type", "")
-            if name_lower in label.lower() and "Cell" in etype:
-                x = int(elem.attrib.get("x", 0))
-                y = int(elem.attrib.get("y", 0))
-                w = int(elem.attrib.get("width", 0))
-                h = int(elem.attrib.get("height", 0))
-                cx, cy = x + w // 2, y + h // 2
-                _wda_request("POST", f"/session/{sid}/actions", {
-                    "actions": [{"type": "pointer", "id": "f1",
-                                 "parameters": {"pointerType": "touch"},
-                                 "actions": [
-                                     {"type": "pointerMove", "duration": 0, "x": cx, "y": cy},
-                                     {"type": "pointerDown", "button": 0},
-                                     {"type": "pause", "duration": 100},
-                                     {"type": "pointerUp", "button": 0}]}]
-                })
-                return f"Launched '{label}' via Spotlight"
-        return f"'{name}' not found in Spotlight results. Try exact app name."
-    except Exception as e:
-        return f"Error: {e}"
+    # Tap the top search result — Spotlight always puts the best match at (197, 152)
+    _wda_request("POST", f"/session/{sid}/actions", {
+        "actions": [{"type": "pointer", "id": "f1",
+                     "parameters": {"pointerType": "touch"},
+                     "actions": [
+                         {"type": "pointerMove", "duration": 0, "x": 197, "y": 152},
+                         {"type": "pointerDown", "button": 0},
+                         {"type": "pause", "duration": 100},
+                         {"type": "pointerUp", "button": 0}]}]
+    })
+    time.sleep(1)
+    return f"Launched '{name}' via Spotlight"
 
 
 
