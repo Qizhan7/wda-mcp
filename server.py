@@ -231,7 +231,7 @@ def wda_screenshot() -> str:
 
 @mcp.tool()
 def wda_tap(x: float, y: float) -> str:
-    """Tap a point on iPhone screen. iPhone 14 Pro: 393x852 points."""
+    """Tap a point on iPhone screen. Use wda_info to check screen size (e.g. 393x852 points)."""
     sid = _wda_get_session()
     r = _wda_request("POST", f"/session/{sid}/actions", {
         "actions": [{
@@ -253,8 +253,8 @@ def wda_tap(x: float, y: float) -> str:
 
 @mcp.tool()
 def wda_swipe(fromX: float, fromY: float, toX: float, toY: float, duration: float = 0.1) -> str:
-    """Swipe on iPhone. Coords are points (393x852). duration in seconds.
-    Home gesture: (196,845)->(196,100) duration=0.08"""
+    """Swipe on iPhone. Coords are points. Use wda_info to check screen size.
+    Home gesture: use wda_home instead."""
     sid = _wda_get_session()
     r = _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
         "fromX": fromX, "fromY": fromY, "toX": toX, "toY": toY, "duration": duration

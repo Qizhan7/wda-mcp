@@ -34,6 +34,8 @@
 | `wda_start` | 启动/重启 WDA（自动 Tailscale 或本地 xcodebuild） |
 | `wda_renew` | 续签 7 天证书 |
 
+**设备兼容性：** 所有坐标在首次使用时自动校准。WDA-MCP 会自动检测屏幕尺寸和 Spotlight 布局——支持任何 iPhone 型号和 iOS 版本。
+
 ## 前置条件
 
 - **macOS** + Xcode

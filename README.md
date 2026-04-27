@@ -34,6 +34,8 @@ Tap buttons, swipe through apps, take screenshots, type text, and inspect UI ele
 | `wda_start` | Start/restart WDA (auto Tailscale tunnel or local xcodebuild) |
 | `wda_renew` | Rebuild WDA to renew 7-day signing certificate |
 
+**Device compatibility:** All coordinates auto-calibrate on first use. WDA-MCP detects your screen size and Spotlight layout automatically — works on any iPhone model and iOS version.
+
 ## Prerequisites
 
 - **macOS** with Xcode installed
