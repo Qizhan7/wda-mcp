@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 .env
 screenshots/
+app_map.json
