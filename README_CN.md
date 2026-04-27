@@ -563,9 +563,19 @@ cloudflared tunnel --url http://localhost:8200
 
 ### 添加到 claude.ai
 
-1. 打开 claude.ai → 设置 → MCP 服务器
-2. 用你的公网 URL（ngrok 或 Cloudflare）添加新服务器
-3. 把所有 WDA 工具设为"始终允许"
+1. 打开 claude.ai → 设置 → 连接器 → **添加自定义连接器**
+2. **名称：** 随便起（比如 `WDA`）
+3. **URL：** 你的公网 HTTPS 地址 + `/mcp`（比如 `https://your-host/mcp`）
+4. 展开 **Advanced settings**：
+   - **OAuth Client ID：** 从 `~/.wda-oauth.json` 里复制
+   - **OAuth Client Secret：** 从 `~/.wda-oauth.json` 里复制
+5. 点 **Add** — Claude.ai 会自动发现 OAuth 端点并完成握手
+6. 把所有 WDA 工具设为"始终允许"
+
+```bash
+# 查看 Client ID 和 Secret
+python3 -c "import json,pathlib; d=json.loads(pathlib.Path('~/.wda-oauth.json').expanduser().read_text()); print(f'Client ID:     {d[\"client_id\"]}'); print(f'Client Secret: {d[\"client_secret\"]}')"
+```
 
 ## 自动续签
 

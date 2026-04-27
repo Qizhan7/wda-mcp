@@ -140,10 +140,19 @@ Decode the failure modes:
 2. Enable Developer Mode.
 3. Create an app / connector.
 4. Set the connector URL to the public HTTPS `/mcp` endpoint.
-5. Authentication:
-   - **Static Bearer token (simplest):** add a custom header `Authorization: Bearer <access_token>`. Token is in `~/.wda-oauth.json`.
-   - **OAuth 2.0:** the server exposes `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`, `/oauth/authorize`, and `/oauth/token`. ChatGPT will run the discovery flow and prompt the user.
-6. Confirm tools like `wda_check`, `wda_tap`, and `wda_type` appear in the connector view.
+5. Authentication — choose **OAuth**, then open **Advanced OAuth settings**:
+   - ChatGPT auto-discovers the OAuth endpoints from the MCP Server URL. Verify the discovered URLs use your **public domain** (e.g. `https://your-host/oauth/authorize`), not `localhost`. If they show `localhost`, replace them with your public domain.
+   - **OAuth Client ID:** from `~/.wda-oauth.json`
+   - **OAuth Client Secret:** from `~/.wda-oauth.json`
+   - **Token endpoint auth method:** `none`
+   - Scopes, OIDC, Registration URL — leave empty / unchecked
+
+   ```bash
+   # Print your Client ID, Secret, and Bearer token
+   python3 -c "import json,pathlib; d=json.loads(pathlib.Path('~/.wda-oauth.json').expanduser().read_text()); print(f'Client ID:     {d[\"client_id\"]}'); print(f'Client Secret: {d[\"client_secret\"]}'); print(f'Bearer token:  {d[\"access_token\"]}')"
+   ```
+6. Check the **"I understand and want to continue"** box and save.
+7. Confirm tools like `wda_check`, `wda_tap`, and `wda_type` appear in the connector view.
 
 ## 6. Security Notes
 

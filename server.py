@@ -759,12 +759,20 @@ def _run_http() -> None:
     mcp_route = app.routes[0]
     app.routes.append(Route("/", mcp_route.endpoint, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]))
 
+    def _public_base(request: Request) -> str:
+        override = os.environ.get("WDA_PUBLIC_URL", "").rstrip("/")
+        if override:
+            return override
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host", "localhost")
+        proto = request.headers.get("x-forwarded-proto", "https")
+        return f"{proto}://{host}"
+
     async def oauth_protected_resource(request: Request):
-        base = str(request.base_url).rstrip("/")
+        base = _public_base(request)
         return JSONResponse({"resource": base, "authorization_servers": [base]})
 
     async def oauth_metadata(request: Request):
-        base = str(request.base_url).rstrip("/")
+        base = _public_base(request)
         return JSONResponse({
             "issuer": base,
             "authorization_endpoint": f"{base}/oauth/authorize",

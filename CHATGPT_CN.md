@@ -141,10 +141,19 @@ curl -sS -X POST https://your-host/mcp \
 2. 开启 Developer mode。
 3. Create app / Create connector。
 4. Connector URL 填公网 HTTPS 的 `/mcp` 地址。
-5. 鉴权两选一：
-   - **静态 Bearer（最简单）：** 在 connector 的 custom headers 里加 `Authorization: Bearer <access_token>`。token 在 `~/.wda-oauth.json` 里。
-   - **OAuth 2.0：** server 已经开放了 `/.well-known/oauth-protected-resource`、`/.well-known/oauth-authorization-server`、`/oauth/authorize`、`/oauth/token`，ChatGPT 会自动走 OAuth 流程引导用户授权。
-6. 创建后确认能看到 `wda_check`、`wda_tap`、`wda_type` 等工具。
+5. 鉴权选 **OAuth**，然后打开 **Advanced OAuth settings**：
+   - ChatGPT 会自动从 MCP Server URL 发现 OAuth 端点。确认发现的 URL 用的是你的**公网域名**（如 `https://your-host/oauth/authorize`），而不是 `localhost`。如果显示 `localhost`，手动替换成你的公网域名。
+   - **OAuth Client ID：** 从 `~/.wda-oauth.json` 里复制
+   - **OAuth Client Secret：** 从 `~/.wda-oauth.json` 里复制
+   - **Token endpoint auth method：** `none`
+   - Scopes、OIDC、Registration URL — 留空 / 不勾选
+
+   ```bash
+   # 查看 Client ID、Secret 和 Bearer token
+   python3 -c "import json,pathlib; d=json.loads(pathlib.Path('~/.wda-oauth.json').expanduser().read_text()); print(f'Client ID:     {d[\"client_id\"]}'); print(f'Client Secret: {d[\"client_secret\"]}'); print(f'Bearer token:  {d[\"access_token\"]}')"
+   ```
+6. 勾上 **"I understand and want to continue"**，保存。
+7. 创建后确认能看到 `wda_check`、`wda_tap`、`wda_type` 等工具。
 
 ## 6. 注意权限
 

@@ -574,9 +574,19 @@ For a permanent custom domain, configure the tunnel in your Cloudflare dashboard
 
 ### Adding to claude.ai
 
-1. Go to claude.ai → Settings → MCP Servers
-2. Add a new server with your public URL (ngrok or Cloudflare)
-3. Set all WDA tools to "Always allow" so you don't have to approve each action
+1. Go to claude.ai → Settings → Connectors → **Add custom connector**
+2. **Name:** anything you like (e.g. `WDA`)
+3. **URL:** your public HTTPS URL with `/mcp` (e.g. `https://your-host/mcp`)
+4. Expand **Advanced settings**:
+   - **OAuth Client ID:** from `~/.wda-oauth.json`
+   - **OAuth Client Secret:** from `~/.wda-oauth.json`
+5. Click **Add** — Claude.ai will auto-discover the OAuth endpoints and complete the handshake
+6. Set all WDA tools to "Always allow" so you don't have to approve each action
+
+```bash
+# Print your Client ID and Secret
+python3 -c "import json,pathlib; d=json.loads(pathlib.Path('~/.wda-oauth.json').expanduser().read_text()); print(f'Client ID:     {d[\"client_id\"]}'); print(f'Client Secret: {d[\"client_secret\"]}')"
+```
 
 > **Why chat?** Claude Code runs on your computer — it can already control your Mac directly. The magic of WDA-MCP is controlling your *phone* through natural conversation from anywhere. "Hey, take a screenshot of my phone" hits different when you're chatting on the couch.
 
