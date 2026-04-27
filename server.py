@@ -159,7 +159,7 @@ def wda_home() -> str:
     sid = _wda_get_session()
     r = _wda_request("POST", f"/session/{sid}/wda/homescreen")
     if "error" in r:
-        # Fallback: the good old yeet swipe
+        # Fallback: full swipe from bottom (needs to go far enough to trigger home)
         r = _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
             "fromX": 196, "fromY": 845, "toX": 196, "toY": 100, "duration": 0.08
         })
