@@ -178,6 +178,36 @@ def wda_source() -> str:
     return src
 
 
+@mcp.tool()
+def wda_check() -> str:
+    """Quick text-based screen check (no screenshot, saves tokens). Returns current app and visible text."""
+    sid = _wda_get_session()
+    r = _wda_request("GET", f"/session/{sid}/source")
+    if "error" in r:
+        return f"Check failed: {r.get('error', 'unknown')}"
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(r.get("value", "<x/>"))
+        app_name = root.attrib.get("name", root.attrib.get("label", "unknown"))
+        app_type = root.attrib.get("type", "")
+        texts = []
+        for elem in root.iter():
+            label = elem.attrib.get("label", "").strip()
+            value = elem.attrib.get("value", "").strip()
+            if label and label not in texts and len(label) < 100:
+                texts.append(label)
+            if value and value != label and value not in texts and len(value) < 100:
+                texts.append(value)
+        summary = f"App: {app_name}\n"
+        summary += f"Visible text ({len(texts)} items):\n"
+        summary += "\n".join(f"  - {t}" for t in texts[:30])
+        if len(texts) > 30:
+            summary += f"\n  ... and {len(texts) - 30} more"
+        return summary
+    except Exception as e:
+        return f"Parse error: {e}"
+
+
 def _patch_pymobiledevice3_dtx():
     """Patch pymobiledevice3 to register XCTest services early (fixes xcuitest over RSD tunnels).
     See: https://github.com/doronz88/pymobiledevice3/pull/1665"""
@@ -286,7 +316,9 @@ def main():
     parser.add_argument("--http", action="store_true")
     args = parser.parse_args()
     if args.http:
-        mcp.run(transport="streamable-http", host="0.0.0.0", port=8200)
+        mcp.settings.host = "0.0.0.0"
+        mcp.settings.port = 8200
+        mcp.run(transport="streamable-http")
     else:
         mcp.run(transport="stdio")
 
