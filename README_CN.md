@@ -28,7 +28,7 @@ WDA-MCP 需要支持**读+写**的 MCP（能看屏幕也能操控）。只读 MC
 | **ChatGPT** 免费/Go | ❌ | — | — | — |
 | **Codex CLI** | ✅ | ✅ | API | 按量付费 |
 
-⚠️ **ChatGPT Plus（$20/月）只能看不能操控！** 点击、输入、滑动等操作在 Plus/Pro 的 Developer Mode 里被限制为只读。完整操控需要 Business（$25/人/月）或 Enterprise。
+⚠️ **ChatGPT Developer Mode MCP 仍在 beta。** 2026 年初 Plus/Pro 可能对自定义 MCP 有只读限制。如果操控不了，试 Business 计划或用 GPT Actions（自定义 API）替代。查看 [OpenAI 最新文档](https://help.openai.com/en/articles/12584461)确认当前状态。
 
 ### Google（Gemini）
 

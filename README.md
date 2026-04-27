@@ -28,7 +28,7 @@ Best free option. Even the free plan on claude.ai supports 1 custom MCP connecto
 | **ChatGPT** Free/Go | ❌ | — | — | — |
 | **Codex CLI** | ✅ | ✅ | API credits | Pay-as-go |
 
-⚠️ **ChatGPT Plus ($20/mo) can only VIEW, not control.** Write actions (tap, type, swipe) are blocked in Developer Mode on Plus/Pro. Full control requires Business ($25/user/mo) or Enterprise.
+⚠️ **ChatGPT Developer Mode MCP is still in beta.** As of early 2026, Plus/Pro plans may have read-only restrictions on custom MCP connectors. If write actions (tap, type, swipe) don't work, try Business plan or use GPT Actions (custom API) as an alternative. Check [OpenAI's latest docs](https://help.openai.com/en/articles/12584461) for current status.
 
 ### Google (Gemini)
 
