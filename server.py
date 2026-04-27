@@ -155,14 +155,18 @@ def wda_type(text: str) -> str:
 
 @mcp.tool()
 def wda_home() -> str:
-    """Go to home screen (swipe up from bottom, for Face ID iPhones)."""
+    """Go to home screen."""
     sid = _wda_get_session()
-    r = _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
-        "fromX": 196, "fromY": 845, "toX": 196, "toY": 100, "duration": 0.08
-    })
+    r = _wda_request("POST", f"/session/{sid}/wda/homescreen")
     if "error" in r:
-        return f"Home failed: {r.get('error', 'unknown')}"
-    return "Swiped to home screen"
+        # Fallback: the good old yeet swipe
+        r = _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
+            "fromX": 196, "fromY": 845, "toX": 196, "toY": 100, "duration": 0.08
+        })
+        if "error" in r:
+            return f"Home failed: {r.get('error', 'unknown')}"
+        return "Home (swipe fallback)"
+    return "Home"
 
 
 APP_MAP_FILE = os.path.join(os.path.dirname(__file__), "app_map.json")
