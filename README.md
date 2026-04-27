@@ -58,6 +58,8 @@ Gemini CLI is free and fully capable. Gemini web app (free or Advanced $20/mo) d
 | **$20/mo** | Claude Pro, ChatGPT Plus, Cursor Pro |
 | **Full power** | Claude Max, Claude Code |
 
+**ChatGPT users:** See [`CHATGPT_CN.md`](CHATGPT_CN.md) for a dedicated setup guide using `server_chatgpt.py` (streamable HTTP entry point for ChatGPT Developer Mode).
+
 ## Tools
 
 | Tool | Description |

@@ -58,6 +58,8 @@ Gemini CLI 免费且功能完整。网页版（免费或 Advanced $20/月）不�
 | **$20/月** | Claude Pro、ChatGPT Plus、Cursor Pro |
 | **全部功能** | Claude Max、Claude Code |
 
+**ChatGPT 用户：** 查看 [`CHATGPT_CN.md`](CHATGPT_CN.md) — 专用接入指南，使用 `server_chatgpt.py` 启动（ChatGPT Developer Mode 的 streamable HTTP 入口）。
+
 ## 工具列表
 
 | 工具 | 功能 |
