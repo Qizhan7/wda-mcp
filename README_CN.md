@@ -24,11 +24,11 @@ WDA-MCP 需要支持**读+写**的 MCP（能看屏幕也能操控）。只读 MC
 
 | 产品 | 自定义 MCP？ | 能操控？ | 最低计划 | 费用 |
 |------|:----------:|:------:|---------|------|
-| **ChatGPT**（网页/APP） | ✅ | ⚠️ Plus/Pro 只能看 | Business | $25/人/月 |
+| **ChatGPT**（网页/桌面/手机） | ✅ | ✅ | Plus | $20/月 |
 | **ChatGPT** 免费/Go | ❌ | — | — | — |
 | **Codex CLI** | ✅ | ✅ | API | 按量付费 |
 
-⚠️ **ChatGPT Developer Mode MCP 仍在 beta。** 2026 年初 Plus/Pro 可能对自定义 MCP 有只读限制。如果操控不了，试 Business 计划或用 GPT Actions（自定义 API）替代。查看 [OpenAI 最新文档](https://help.openai.com/en/articles/12584461)确认当前状态。
+开启方式：设置 → Apps → Advanced → Developer Mode。自定义 MCP 在 Plus/Pro/Business/Enterprise 上都支持完整读写。需要 HTTPS（用 ngrok/Cloudflare 暴露）。写操作会弹确认框。注意：OpenAI **内置**连接器（Notion、Drive 等）是只读的——这个限制不影响 wda-mcp 这种自定义 MCP。
 
 ### Google（Gemini）
 
@@ -55,7 +55,7 @@ Gemini CLI 免费且功能完整。网页版（免费或 Advanced $20/月）不�
 | 预算 | 推荐 |
 |------|------|
 | **免费** | claude.ai（1个连接器）、Gemini CLI、Mistral Le Chat |
-| **$20/月** | Claude Pro（无限连接器）、Cursor Pro |
+| **$20/月** | Claude Pro、ChatGPT Plus、Cursor Pro |
 | **全部功能** | Claude Max、Claude Code |
 
 ## 工具列表

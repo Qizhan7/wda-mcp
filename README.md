@@ -24,11 +24,11 @@ Best free option. Even the free plan on claude.ai supports 1 custom MCP connecto
 
 | Product | Custom MCP? | Read+Write? | Min Plan | Cost |
 |---------|:-----------:|:-----------:|----------|------|
-| **ChatGPT** (web/app) | ✅ | ⚠️ read-only on Plus/Pro | Business | $25/user/mo |
+| **ChatGPT** (web/desktop/mobile) | ✅ | ✅ | Plus | $20/mo |
 | **ChatGPT** Free/Go | ❌ | — | — | — |
 | **Codex CLI** | ✅ | ✅ | API credits | Pay-as-go |
 
-⚠️ **ChatGPT Developer Mode MCP is still in beta.** As of early 2026, Plus/Pro plans may have read-only restrictions on custom MCP connectors. If write actions (tap, type, swipe) don't work, try Business plan or use GPT Actions (custom API) as an alternative. Check [OpenAI's latest docs](https://help.openai.com/en/articles/12584461) for current status.
+Enable via Settings → Apps → Advanced → Developer Mode. Custom MCP servers get full read+write on Plus/Pro/Business/Enterprise. Must be HTTPS (use ngrok/Cloudflare). Write actions show a confirmation dialog. Note: OpenAI's *built-in* connectors (Notion, Drive) are read-only — that limit does NOT apply to custom MCP servers like wda-mcp.
 
 ### Google (Gemini)
 
@@ -55,7 +55,7 @@ Gemini CLI is free and fully capable. Gemini web app (free or Advanced $20/mo) d
 | Budget | Best choice |
 |--------|------------|
 | **$0** | claude.ai free (1 connector), Gemini CLI, Mistral Le Chat |
-| **$20/mo** | Claude Pro (unlimited), Cursor Pro |
+| **$20/mo** | Claude Pro, ChatGPT Plus, Cursor Pro |
 | **Full power** | Claude Max, Claude Code |
 
 ## Tools

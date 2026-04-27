@@ -12,11 +12,29 @@ from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("wda-mcp")
 
+def _load_env_file(path: str) -> None:
+    """Load simple KEY=VALUE pairs without overriding the parent environment."""
+    if not os.path.exists(path):
+        return
+    with open(path) as f:
+        for raw_line in f:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+
+_load_env_file(os.path.join(os.path.dirname(__file__), ".env"))
+
 WDA_TAILSCALE_IP = os.environ.get("WDA_TAILSCALE_IP", "")
 WDA_DEVICE_ID = os.environ.get("WDA_DEVICE_ID", "")
 WDA_BUNDLE_ID = os.environ.get("WDA_BUNDLE_ID", "com.example.WebDriverAgentRunner.xctrunner")
-WDA_PROJECT_DIR = os.environ.get("WDA_PROJECT_DIR", os.path.expanduser("~/Desktop/WebDriverAgent"))
-SCREENSHOTS_DIR = os.environ.get("WDA_SCREENSHOTS_DIR", os.path.expanduser("~/screenshots"))
+WDA_PROJECT_DIR = os.path.expanduser(os.environ.get("WDA_PROJECT_DIR", "~/Desktop/WebDriverAgent"))
+SCREENSHOTS_DIR = os.path.expanduser(os.environ.get("WDA_SCREENSHOTS_DIR", "~/screenshots"))
 
 _wda_session_id: str | None = None
 _wda_base: str | None = None
@@ -489,6 +507,7 @@ def wda_tap_text(text: str) -> str:
     """Find an element by text and tap it. Auto-retries for 3 seconds if not found (handles page loading)."""
     import xml.etree.ElementTree as ET
     sid = _wda_get_session()
+    text_lower = text.lower()
 
     for attempt in range(3):
         r = _wda_request("GET", f"/session/{sid}/source")
@@ -496,40 +515,38 @@ def wda_tap_text(text: str) -> str:
             return f"Find failed: {r.get('error', 'unknown')}"
         try:
             root = ET.fromstring(r.get("value", "<x/>"))
-        text_lower = text.lower()
-        for elem in root.iter():
-            label = elem.attrib.get("label", "")
-            name = elem.attrib.get("name", "")
-            value = elem.attrib.get("value", "")
-            if text_lower in label.lower() or text_lower in name.lower() or text_lower in value.lower():
-                x = int(elem.attrib.get("x", 0))
-                y = int(elem.attrib.get("y", 0))
-                w = int(elem.attrib.get("width", 0))
-                h = int(elem.attrib.get("height", 0))
-                cx, cy = x + w // 2, y + h // 2
-                tap_r = _wda_request("POST", f"/session/{sid}/actions", {
-                    "actions": [{
-                        "type": "pointer", "id": "finger1",
-                        "parameters": {"pointerType": "touch"},
-                        "actions": [
-                            {"type": "pointerMove", "duration": 0, "x": cx, "y": cy},
-                            {"type": "pointerDown", "button": 0},
-                            {"type": "pause", "duration": 100},
-                            {"type": "pointerUp", "button": 0}
-                        ]
-                    }]
-                })
-                if "error" in tap_r:
-                    return f"Found '{label or name}' but tap failed: {tap_r['error']}"
-                return f"Tapped '{label or name}' at ({cx}, {cy})"
-            # Not found — wait and retry
-            if attempt < 2:
-                time.sleep(0.5)
-                continue
-            return f"No element matching '{text}' found on screen (tried 3 times)"
+            for elem in root.iter():
+                label = elem.attrib.get("label", "")
+                name = elem.attrib.get("name", "")
+                value = elem.attrib.get("value", "")
+                if text_lower in label.lower() or text_lower in name.lower() or text_lower in value.lower():
+                    x = int(elem.attrib.get("x", 0))
+                    y = int(elem.attrib.get("y", 0))
+                    w = int(elem.attrib.get("width", 0))
+                    h = int(elem.attrib.get("height", 0))
+                    cx, cy = x + w // 2, y + h // 2
+                    tap_r = _wda_request("POST", f"/session/{sid}/actions", {
+                        "actions": [{
+                            "type": "pointer", "id": "finger1",
+                            "parameters": {"pointerType": "touch"},
+                            "actions": [
+                                {"type": "pointerMove", "duration": 0, "x": cx, "y": cy},
+                                {"type": "pointerDown", "button": 0},
+                                {"type": "pause", "duration": 100},
+                                {"type": "pointerUp", "button": 0}
+                            ]
+                        }]
+                    })
+                    if "error" in tap_r:
+                        return f"Found '{label or name}' but tap failed: {tap_r['error']}"
+                    return f"Tapped '{label or name}' at ({cx}, {cy})"
         except Exception as e:
             return f"Error: {e}"
-    return f"No element matching '{text}' found"
+
+        if attempt < 2:
+            time.sleep(0.5)
+
+    return f"No element matching '{text}' found on screen (tried 3 times)"
 
 
 @mcp.tool()
