@@ -681,15 +681,169 @@ def wda_renew() -> str:
         return f"WDA renewal FAILED: {err}"
 
 
+def _run_http() -> None:
+    """Run wda-mcp over streamable HTTP with OAuth + Bearer auth.
+
+    HTTP mode is dangerous to leave unauthenticated — anyone who reaches /mcp can
+    control the iPhone (tap, type, screenshot, read clipboard). This runner refuses
+    to start without an access token, exposes OAuth metadata so MCP clients can
+    enroll, and falls back to a Bearer header check otherwise.
+    """
+    import json as _json
+    import pathlib
+    import secrets as _secrets
+    import sys as _sys
+    import time as _time
+
+    import uvicorn
+    import mcp.server.transport_security as _ts
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse, RedirectResponse
+    from starlette.routing import Route
+
+    cred_file = pathlib.Path.home() / ".wda-oauth.json"
+    if cred_file.exists():
+        creds = _json.loads(cred_file.read_text())
+        client_id = creds.get("client_id", "")
+        client_secret = creds.get("client_secret", "")
+        access_token = creds.get("access_token", "")
+    else:
+        client_id = os.environ.get("WDA_OAUTH_CLIENT_ID", "")
+        client_secret = os.environ.get("WDA_OAUTH_CLIENT_SECRET", "")
+        access_token = os.environ.get("WDA_OAUTH_ACCESS_TOKEN", "")
+
+    if not access_token:
+        print(
+            "ERROR: wda-mcp HTTP mode refuses to start without an access token.\n"
+            "       Generate one: python scripts/generate_oauth_creds.py\n"
+            "       Or set WDA_OAUTH_ACCESS_TOKEN (and optional CLIENT_ID/SECRET).",
+            file=_sys.stderr,
+        )
+        _sys.exit(1)
+
+    # FastMCP's default DNS-rebinding protection blocks tunnel-routed Host headers
+    # (cloudflared / ngrok). We replace that protection with explicit Bearer auth
+    # in the middleware below.
+    _orig_init = _ts.TransportSecurityMiddleware.__init__
+
+    def _patched_init(self, settings=None):
+        _orig_init(self, _ts.TransportSecuritySettings(
+            enable_dns_rebinding_protection=False,
+            allowed_hosts=["*"],
+        ))
+
+    _ts.TransportSecurityMiddleware.__init__ = _patched_init
+
+    pending_codes: dict = {}
+
+    class OAuthMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            path = request.url.path
+            if path in (
+                "/oauth/token",
+                "/oauth/authorize",
+                "/.well-known/oauth-authorization-server",
+                "/.well-known/oauth-protected-resource",
+            ):
+                return await call_next(request)
+            client = request.client
+            if client and client.host in ("127.0.0.1", "::1", "localhost"):
+                return await call_next(request)
+            auth = request.headers.get("authorization", "")
+            if auth == f"Bearer {access_token}":
+                return await call_next(request)
+            return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    app = mcp.streamable_http_app()
+    mcp_route = app.routes[0]
+    app.routes.append(Route("/", mcp_route.endpoint, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]))
+
+    async def oauth_protected_resource(request: Request):
+        base = str(request.base_url).rstrip("/")
+        return JSONResponse({"resource": base, "authorization_servers": [base]})
+
+    async def oauth_metadata(request: Request):
+        base = str(request.base_url).rstrip("/")
+        return JSONResponse({
+            "issuer": base,
+            "authorization_endpoint": f"{base}/oauth/authorize",
+            "token_endpoint": f"{base}/oauth/token",
+            "grant_types_supported": ["authorization_code", "client_credentials"],
+            "response_types_supported": ["code"],
+            "code_challenge_methods_supported": ["S256"],
+            "token_endpoint_auth_methods_supported": ["client_secret_post"],
+        })
+
+    async def oauth_authorize(request: Request):
+        from urllib.parse import urlencode
+        redirect_uri = request.query_params.get("redirect_uri", "")
+        state = request.query_params.get("state", "")
+        if not redirect_uri:
+            return JSONResponse({"error": "missing redirect_uri"}, status_code=400)
+        code = _secrets.token_urlsafe(32)
+        pending_codes[code] = {"redirect_uri": redirect_uri, "expires_at": _time.time() + 300}
+        return RedirectResponse(f"{redirect_uri}?{urlencode({'code': code, 'state': state})}")
+
+    async def oauth_token(request: Request):
+        from urllib.parse import unquote_plus
+        body = await request.body()
+        try:
+            params = {
+                k: unquote_plus(v)
+                for k, v in (x.split("=", 1) for x in body.decode().split("&") if "=" in x)
+            }
+        except Exception:
+            try:
+                params = _json.loads(body)
+            except Exception:
+                return JSONResponse({"error": "invalid_request"}, status_code=400)
+
+        grant_type = params.get("grant_type", "")
+
+        if grant_type == "client_credentials":
+            if (client_id and client_secret
+                    and params.get("client_id") == client_id
+                    and params.get("client_secret") == client_secret):
+                return JSONResponse({"access_token": access_token, "token_type": "bearer", "expires_in": 86400})
+            return JSONResponse({"error": "invalid_client"}, status_code=401)
+
+        if grant_type == "authorization_code":
+            code = params.get("code", "")
+            now = _time.time()
+            for k in [k for k, v in pending_codes.items() if v["expires_at"] < now]:
+                del pending_codes[k]
+            pending = pending_codes.pop(code, None)
+            if not pending:
+                return JSONResponse({"error": "invalid_grant", "error_description": "unknown or expired code"}, status_code=400)
+            if params.get("redirect_uri", "") != pending["redirect_uri"]:
+                return JSONResponse({"error": "invalid_grant", "error_description": "redirect_uri mismatch"}, status_code=400)
+            if client_id and client_secret:
+                if (params.get("client_id") != client_id or params.get("client_secret") != client_secret):
+                    return JSONResponse({"error": "invalid_client"}, status_code=401)
+            return JSONResponse({"access_token": access_token, "token_type": "bearer", "expires_in": 86400})
+
+        return JSONResponse({"error": "unsupported_grant_type"}, status_code=400)
+
+    app.routes.insert(0, Route("/.well-known/oauth-protected-resource", oauth_protected_resource, methods=["GET"]))
+    app.routes.insert(1, Route("/.well-known/oauth-authorization-server", oauth_metadata, methods=["GET"]))
+    app.routes.insert(2, Route("/oauth/authorize", oauth_authorize, methods=["GET"]))
+    app.routes.insert(3, Route("/oauth/token", oauth_token, methods=["POST"]))
+    app.add_middleware(OAuthMiddleware)
+
+    host = os.environ.get("WDA_HTTP_HOST", "0.0.0.0")
+    port = int(os.environ.get("WDA_HTTP_PORT", "8200"))
+    print(f"wda-mcp HTTP (OAuth + Bearer) on http://{host}:{port}/mcp", flush=True)
+    uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="info")).run()
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--http", action="store_true")
     args = parser.parse_args()
     if args.http:
-        mcp.settings.host = "0.0.0.0"
-        mcp.settings.port = 8200
-        mcp.run(transport="streamable-http")
+        _run_http()
     else:
         mcp.run(transport="stdio")
 

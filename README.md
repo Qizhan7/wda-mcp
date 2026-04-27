@@ -6,59 +6,48 @@ A standalone [MCP](https://modelcontextprotocol.io) server that lets AI agents c
 
 Tap buttons, swipe through apps, take screenshots, type text, and inspect UI elements — all through natural language via any MCP-compatible client.
 
-## Platform Compatibility
+## Choose Your Route
 
-WDA-MCP needs full read+write MCP support (viewing AND tapping/typing). Read-only MCP = can see the screen but can't control it.
+WDA-MCP needs full read+write MCP support: viewing the screen plus tapping, typing, and swiping. Read-only MCP = can see but can't control.
+
+| You want to use | Entry point | Notes |
+|------|------|------|
+| **Claude Code / Claude Desktop** | `server.py` stdio | Local MCP, the most stable path. |
+| **claude.ai web chat** | `server.py --http` + HTTPS tunnel | Good free chat-based control path. |
+| **Codex** | `server.py` stdio | Add `wda` to your Codex MCP config. |
+| **ChatGPT web / mobile browser web** | `server_chatgpt.py` + HTTPS `/mcp` | Uses ChatGPT Developer Mode. See [`CHATGPT.md`](CHATGPT.md). |
+| **ChatGPT iOS/Android native app** | Not recommended yet | Treat the web version as the stable test path. |
+
+> If Claude already works for you, keep that configuration. ChatGPT has its own `server_chatgpt.py` entry point so the two paths don't get mixed together.
+
+## Platform Compatibility
 
 ### Anthropic (Claude)
 
-| Product | Custom MCP? | Read+Write? | Min Plan | Cost |
-|---------|:-----------:|:-----------:|----------|------|
-| **claude.ai** (web) | ✅ | ✅ | Free (1 connector) | $0 |
-| **Claude Desktop** | ✅ | ✅ | Free | $0 |
-| **Claude Code** (CLI) | ✅ | ✅ | Pro or API credits | ~$20/mo |
+| Product | Custom MCP? | Read+Write? | Notes |
+|---------|:-----------:|:-----------:|------|
+| **claude.ai** (web) | ✅ | ✅ | Best low-friction chat entry point. |
+| **Claude Desktop** | ✅ | ✅ | Good desktop option. |
+| **Claude Code** (CLI) | ✅ | ✅ | Best for development and debugging. |
 
-Best free option. Even the free plan on claude.ai supports 1 custom MCP connector with full control.
+### OpenAI (ChatGPT / Codex)
 
-### OpenAI (ChatGPT)
+| Product | Custom MCP? | Read+Write? | Recommended entry |
+|---------|:-----------:|:-----------:|-------------------|
+| **ChatGPT web** | ✅ Developer Mode | ⚠️ depends on account/workspace | `server_chatgpt.py` + HTTPS `/mcp` |
+| **ChatGPT in a mobile browser** | ✅ worth trying | ⚠️ depends on web UI access | Same as above |
+| **ChatGPT native mobile app** | ⚠️ not reliable/recommended | ⚠️ not guaranteed | Use browser web instead |
+| **Codex CLI / Codex App** | ✅ | ✅ | `server.py` stdio |
 
-| Product | Custom MCP? | Read+Write? | Min Plan | Cost |
-|---------|:-----------:|:-----------:|----------|------|
-| **ChatGPT** (web/desktop/mobile) | ✅ | ✅ | Plus | $20/mo |
-| **ChatGPT** Free/Go | ❌ | — | — | — |
-| **Codex CLI** | ✅ | ✅ | API credits | Pay-as-go |
+ChatGPT Developer Mode / MCP Apps are still beta. Write actions usually show a confirmation dialog, and full read/write access depends on your account, plan, and workspace settings. OpenAI built-in connectors such as Drive or Notion are different from your own custom WDA-MCP server.
 
-Enable via Settings → Apps → Advanced → Developer Mode. Custom MCP servers get full read+write on Plus/Pro/Business/Enterprise. Must be HTTPS (use ngrok/Cloudflare). Write actions show a confirmation dialog. Note: OpenAI's *built-in* connectors (Notion, Drive) are read-only — that limit does NOT apply to custom MCP servers like wda-mcp.
+### Other MCP Clients
 
-### Google (Gemini)
-
-| Product | Custom MCP? | Read+Write? | Min Plan | Cost |
-|---------|:-----------:|:-----------:|----------|------|
-| **Gemini CLI** | ✅ | ✅ | Free Google account | $0 |
-| **Gemini web** (gemini.google.com) | ❌ | — | — | Not available |
-| **Gemini Enterprise** (Cloud) | ✅ | ✅ | Cloud billing | $$$ |
-
-Gemini CLI is free and fully capable. Gemini web app (free or Advanced $20/mo) does NOT support custom MCP.
-
-### Others
-
-| Product | Custom MCP? | Read+Write? | Min Plan | Cost |
-|---------|:-----------:|:-----------:|----------|------|
-| **Mistral Le Chat** | ✅ | ✅ | Free | $0 |
-| **Cursor** | ✅ | ✅ | Pro | $20/mo |
-| **Windsurf** | ✅ | ✅ | Free | $0 |
-| **Cline** (VS Code) | ✅ | ✅ | Free (needs LLM API) | $0 + API |
-| **VS Code + Copilot** | ✅ | ✅ | Copilot sub | $10/mo |
-
-### Best options by budget
-
-| Budget | Best choice |
-|--------|------------|
-| **$0** | claude.ai free (1 connector), Gemini CLI, Mistral Le Chat |
-| **$20/mo** | Claude Pro, ChatGPT Plus, Cursor Pro |
-| **Full power** | Claude Max, Claude Code |
-
-**ChatGPT users:** See [`CHATGPT_CN.md`](CHATGPT_CN.md) for a dedicated setup guide using `server_chatgpt.py` (streamable HTTP entry point for ChatGPT Developer Mode).
+| Product | Custom MCP? | Read+Write? | Notes |
+|---------|:-----------:|:-----------:|------|
+| **Gemini CLI** | ✅ | ✅ | Gemini web does not support custom MCP. |
+| **Mistral Le Chat** | ✅ | ✅ | Useful free chat entry point to test. |
+| **Cursor / Windsurf / Cline** | ✅ | ✅ | Good inside development environments. |
 
 ## Tools
 
@@ -149,6 +138,8 @@ xcrun xctrace list devices
 
 ### 5. Run the server
 
+Claude and Codex use the original `server.py` entry point:
+
 ```bash
 # stdio mode (for Claude Code / MCP clients)
 python server.py
@@ -156,6 +147,8 @@ python server.py
 # HTTP mode (port 8200)
 python server.py --http
 ```
+
+ChatGPT uses the dedicated `server_chatgpt.py` entry point in [`CHATGPT.md`](CHATGPT.md).
 
 ### 6. Add to Claude Code
 
@@ -176,26 +169,156 @@ Add to your `.mcp.json`:
 }
 ```
 
-## Remote Access with Tailscale
+### 7. Add to Codex
 
-To control your iPhone from anywhere (not just your local network):
+Codex reads MCP servers from `~/.codex/config.toml`. If your `python` is not Python 3.12+, set `command` to your full Python 3.12 path.
+
+```toml
+[mcp_servers.wda]
+command = "python3.12"
+args = ["/path/to/wda-mcp/server.py"]
+cwd = "/path/to/wda-mcp"
+startup_timeout_sec = 20
+tool_timeout_sec = 300
+```
+
+Restart Codex, then check `/mcp` or `codex mcp list`.
+
+## Stage 1: USB Local Validation
+
+**Goal:** Prove WDA itself works: signing, certificates, UDID, Bundle ID, Xcode build, and WDA launch. Do not debug AP isolation, Tailscale, or 5G yet.
+
+**Pass criteria:** the automation screen appears on the iPhone. If the Mac and iPhone are also on the same WiFi, `wda_status` and `wda_screenshot` return normally.
+
+1. Connect iPhone to the Mac over USB and keep it unlocked. The phone may stay on home WiFi, but do not unplug USB during this stage.
+2. Confirm the iPhone trusts the computer and the developer certificate under **Settings → General → VPN & Device Management**.
+3. Fill `.env` with `WDA_DEVICE_ID`, `WDA_BUNDLE_ID`, and `WDA_PROJECT_DIR`; `WDA_TAILSCALE_IP` can stay empty for now.
+4. Start the MCP server and call `wda_start()`, or run `WebDriverAgentRunner` directly in Xcode.
+5. When the automation screen appears on the iPhone, WDA itself has passed the first gate. If the Mac and iPhone are also on the same WiFi, you can also test `wda_status` and `wda_screenshot`.
+
+**If stuck, check:**
+- The iPhone trusts the computer and developer certificate.
+- `WDA_DEVICE_ID`, `WDA_BUNDLE_ID`, and `WDA_PROJECT_DIR` are correct.
+- WDA builds in Xcode, and the Bundle ID matches the signing profile.
+- The phone is unlocked, Auto-Lock is disabled, and `remoted` is not stuck.
+
+If USB validation fails, do not debug WiFi/5G yet.
+
+## Stage 2: USB → WiFi Handoff Checklist
+
+**Goal:** Move from "WDA launches over USB" to "after unplugging USB, the Mac can still reach the iPhone over the same WiFi." Many first-time setups fail here, so only debug LAN reachability and Xcode wireless pairing at this stage.
+
+**Pass criteria:** **Connect via network** is enabled in Xcode; after unplugging USB, the Mac can `ping <iPhone WiFi IP>` and `curl http://<iPhone WiFi IP>:8100/status` returns WDA status.
+
+Keep these three checks separate:
+
+| Goal | What you are testing | Common causes of failure |
+|------|----------------------|--------------------------|
+| **LAN direct access** | Mac can reach `http://<iPhone WiFi IP>:8100/status` | Different subnet, guest WiFi, AP/client isolation, dual-homed Mac/wrong route, VPN/proxy routing |
+| **Tailscale access** | Mac can reach `http://<iPhone Tailscale IP>:8100/status` | iPhone Tailscale offline, another VPN taking over, UDP blocked |
+| **Wireless WDA launch** | Mac can reach the iPhone RemotePairing port `49152` | Xcode network pairing not done, Tailscale/network handoff interrupted, locked phone, stuck `remoted` |
+
+Do not unplug USB and leave immediately. Validate this at home first:
+
+1. Keep USB connected and confirm WDA is running on the iPhone.
+2. Put Mac and iPhone on the same normal WiFi / same router. Avoid guest, campus, hotel, or isolated office networks. If the Mac is on Ethernet and WiFi at the same time, temporarily disconnect the unrelated network.
+3. In Xcode, open Window → Devices and Simulators → select iPhone → enable **Connect via network**. Apple's [wireless device pairing guide](https://help.apple.com/xcode/mac/current/en.lproj/devbc48d1bad.html) pairs over USB first, then disconnects the cable.
+4. Find the iPhone WiFi IP in Settings → WiFi → current network `i`.
+5. Test LAN direct access from the Mac:
+   ```bash
+   ping <iPhone WiFi IP>
+   route -n get <iPhone WiFi IP> | grep -E 'interface|gateway|source'
+   curl -m 3 http://<iPhone WiFi IP>:8100/status
+   ```
+6. If using Tailscale, test that path too:
+   ```bash
+   tailscale status
+   tailscale ping <iPhone Tailscale IP>
+   curl -m 3 http://<iPhone Tailscale IP>:8100/status
+   ```
+7. If you need to start/restart WDA wirelessly, test RemotePairing:
+   ```bash
+   python3.12 - <<'PY'
+   import socket
+   ip = "<iPhone Tailscale IP or WiFi IP>"
+   s = socket.socket()
+   s.settimeout(3)
+   s.connect((ip, 49152))
+   print("RemotePairing OK")
+   PY
+   ```
+
+Apple's [wireless device troubleshooting guide](https://help.apple.com/xcode/mac/current/en.lproj/devac3261a70.html) also recommends confirming the device is paired, Mac and device are on the same network, and `ping <device IP>` works.
+
+**If stuck, check:**
+- Mac and iPhone are on the same normal WiFi / same router, not guest, campus, hotel, or isolated office WiFi.
+- If `ping <iPhone WiFi IP>` fails, suspect different subnets, AP/client isolation, or a dual-homed Mac using the wrong route.
+- If the Mac is on Ethernet and WiFi at the same time, temporarily disconnect the unrelated network and test again.
+- Xcode really completed **Connect via network**; if unsure, pair over USB again.
+- `curl :8100` only proves you can reach an already-running WDA. Wireless start/restart also needs `49152`.
+
+## Stage 3: WiFi / LAN Usage First
+
+**Goal:** Let Claude/Codex/MCP reliably control the iPhone on the same WiFi/router. 5G and VPS both build on this layer.
+
+**Pass criteria:** `curl http://<iPhone WiFi IP>:8100/status` reliably returns WDA status, and `wda_status` / `wda_screenshot` work.
+
+1. Put iPhone on WiFi and Mac on the same WiFi/router.
+2. Start WDA over USB or Xcode and wait until the automation screen appears on the iPhone.
+3. Find the iPhone WiFi IP in Settings → WiFi → current network `i`.
+4. From the Mac, confirm WDA is reachable:
+   ```bash
+   ping <iPhone WiFi IP>
+   curl -m 3 http://<iPhone WiFi IP>:8100/status
+   ```
+5. Once `curl` returns WDA status, Claude/Codex/MCP can control the phone through that WiFi IP.
+
+**If stuck, check:**
+- Same subnet and same normal SSID; do not use guest WiFi.
+- AP isolation / client isolation / device-to-device blocking in router settings.
+- Mac connected to Ethernet plus another WiFi, causing the wrong route to the iPhone IP.
+- A global proxy stealing LAN routes; LAN ranges should go DIRECT.
+
+If this step fails, do not debug 5G yet.
+
+## Stage 4: Remote Access with Tailscale
+
+**Goal:** Control your iPhone from anywhere, not just the local network.
+
+**Pass criteria:** `tailscale status` shows the iPhone online, `tailscale ping <iPhone Tailscale IP>` succeeds, and `curl http://<iPhone Tailscale IP>:8100/status` returns WDA status.
 
 1. Install [Tailscale](https://tailscale.com) on both your Mac and iPhone
-2. Note the iPhone's Tailscale IP (e.g. `100.71.146.51`)
+2. Note the iPhone's Tailscale IP (e.g. `100.x.x.x` from the `100.64.0.0/10` CGNAT range)
 3. Set `WDA_TAILSCALE_IP` in your `.env` or MCP config
-4. WDA-MCP will try the Tailscale IP first, then fall back to LAN discovery
+4. WDA-MCP will try the Tailscale IP first. If that fails, it reads the WDA URL from `/tmp/wda_run.log` and tries a few common LAN IPs. For first-time setup, explicitly setting `WDA_TAILSCALE_IP` is more reliable
 
-### 5G / Mobile Data Support
+**If stuck, check:**
+- Tailscale is online on the iPhone; enable **VPN On Demand / Connect On Demand** if it drops in the background.
+- Other iPhone VPN/proxy apps are not running at the same time. Test with only Tailscale enabled.
+- Mac proxy/VPN rules are not stealing `100.64.0.0/10` Tailscale routes.
+- `WDA_TAILSCALE_IP` is the iPhone's Tailscale IP, not the Mac/VPS IP.
+- If Tailscale ping works but `8100` does not, WDA may not be running; go back to the WiFi stage and start WDA first.
 
-WDA-MCP can start and control WDA even when the iPhone is on mobile data — **no USB, no same network required**. The `wda_start()` tool automatically:
+## Stage 5: 5G / Mobile Data Support
+
+**Goal:** After the iPhone leaves WiFi, keep controlling the already-running WDA over 5G + Tailscale. If `49152` is reachable, then try remote start/restart.
+
+**Pass criteria:** after switching to mobile data, `tailscale ping <iPhone Tailscale IP>` and `curl http://<iPhone Tailscale IP>:8100/status` still work. `49152` reachability is a bonus: it means remote start/restart may work.
+
+WDA-MCP can control WDA while the iPhone is on mobile data — **no USB, no same LAN required**. Starting/restarting WDA depends on the iPhone RemotePairing service; the real test is whether port `49152` is reachable on the iPhone Tailscale IP, not whether the phone currently says WiFi or 5G. When RemotePairing port `49152` is reachable, `wda_start()` automatically:
+
+Cellular remote start can still fail because of carrier networking, Tailscale reconnects, DERP/UDP limitations, VPN/proxy conflicts, or WiFi -> cellular handoff jitter. If `49152` is unreachable or WDA is unstable after trying, go back to the WiFi/LAN workflow above, start WDA on WiFi first, then use the important workflow below to switch to 5G and keep controlling it.
 
 1. Detects the iPhone's RemotePairing service via Tailscale
 2. Creates a TCP tunnel using `pymobiledevice3` (requires Python 3.13 + sudo)
 3. Launches WDA through the tunnel
-4. Auto-patches pymobiledevice3 to fix a [DTX timing issue](https://github.com/doronz88/pymobiledevice3/pull/1665) with RSD tunnels
+4. Checks whether pymobiledevice3 includes the [DTX timing fix](https://github.com/doronz88/pymobiledevice3/pull/1665), and applies the local compatibility patch if an older install is missing it
 
-**Requirements for remote start:**
-- iPhone WiFi toggle must be ON (it doesn't need to be connected to any network — just the toggle)
+**Requirements for remote start/restart:**
+- iPhone is paired in Xcode with **Connect via network**
+- RemotePairing port `49152` is reachable on the iPhone Tailscale IP
+- Keep the iPhone WiFi toggle ON. It does not have to be connected to a WiFi network, but do not turn the WiFi toggle off
+- If `49152` disappears after switching to cellular, start WDA on WiFi first, then leave WiFi and keep controlling it
 - Tailscale running on both devices
 - `sudo` access on the Mac (tunnel creation requires root for the utun interface)
 - Python 3.13 with pymobiledevice3: `brew install python@3.13 && python3.13 -m pip install pymobiledevice3`
@@ -203,9 +326,16 @@ WDA-MCP can start and control WDA even when the iPhone is on mobile data — **n
 **Typical workflow:**
 1. At home: iPhone on WiFi → `wda_start()` launches WDA via Tailscale tunnel
 2. Leave home: iPhone disconnects from WiFi (but toggle stays on) → WDA keeps running
-3. On the go: control iPhone via 5G + Tailscale from anywhere
+3. On the go: control iPhone via 5G + Tailscale from anywhere; if `49152` remains reachable, remote restart can work too
 
-> ### ⚠️ Steps before going out (read carefully!)
+**If stuck, check:**
+- The WiFi toggle is still ON. Do not turn off the main WiFi switch in Settings.
+- If `8100` drops, check Tailscale, mobile carrier networking, DERP, and VPN/proxy conflicts.
+- If `8100` stays up but `49152` drops, you can still control the running WDA but cannot restart it remotely yet. Starting on WiFi is the stable fallback.
+- If it drops during handoff, use the watcher below to see whether `ping`, `8100`, or `49152` fails first.
+- If 5G remains unstable, stop digging and use the WiFi start-and-keepalive workflow.
+
+> ### ⚠️ Important workflow before going out (read carefully!)
 >
 > **One rule: keep the WiFi button blue (ON). Never turn it off.**
 >
@@ -216,7 +346,9 @@ WDA-MCP can start and control WDA even when the iPhone is on mobile data — **n
 > 4. Make sure **no other WiFi will auto-connect** (turn off "Auto-Join" for saved networks)
 > 5. Leave! WDA keeps running over 5G + Tailscale
 >
-> **For daily use it's simpler** — just walk out of WiFi range naturally. As long as you don't manually turn off the WiFi button, WDA stays alive.
+> This tested flow is the key to keeping WDA alive on 5G. Do not skip steps.
+>
+> **For daily use it's simpler** — just walk out of WiFi range naturally. As long as mobile data is on and you don't manually turn off the WiFi button, WDA stays alive.
 >
 > ---
 >
@@ -265,7 +397,133 @@ If Tailscale works on WiFi but fails on mobile data (connection times out or get
 
 After this, mobile data traffic routes through your DERP server and everything works — WDA remote start, screenshots, control, all of it. No code changes needed.
 
+## Advanced Troubleshooting: Ports, Scripts, Networks
+
+This section is for cross-stage debugging. First-time users should follow the 5 stages above, then come here only for the item that matches the failure.
+
+### Know the two ports
+
+- `8100`: WDA HTTP service. If this works, you can control an already-running WDA: screenshot, tap, type, inspect UI.
+- `49152`: iPhone RemotePairing service. This is needed for wireless start/restart.
+- **WDA access is not the same as WDA launch.** On 5G, if `8100` works but `49152` does not, you can usually keep controlling the running WDA but cannot restart it remotely yet.
+
+### Diagnose USB/WiFi/Tailscale
+
+```bash
+bash scripts/diagnose_usb_wifi.sh <iPhone WiFi IP> <iPhone Tailscale IP>
+```
+
+When helping someone remotely, ask for the full diagnostic output, especially `Mac local IPs`, `Mac network snapshot`, `Mac route to iPhone WiFi IP`, `LAN ping`, `WiFi WDA status`, and `Tailscale ping`. Also ask whether the Mac is connected to Ethernet and WiFi at the same time, and which router/SSID the iPhone is actually using.
+
+If the failure happens during WiFi -> cellular handoff, run a watcher from the Mac or VPS:
+
+```bash
+bash scripts/watch_handoff.sh <iPhone Tailscale IP>
+```
+
+Interpret the first failing column: `ping` means Tailscale/network handoff, `8100` means WDA access dropped, and only `49152` failing means you can still control the running WDA but cannot restart it yet.
+
+### Restricted network notes
+
+- AP/client isolation is common on guest, campus, hotel, and some ISP/router default WiFi networks. Symptom: both devices have internet, but `ping <iPhone WiFi IP>` fails.
+- Do not use guest WiFi for the first setup. Use a normal home/private SSID or a travel router with client isolation off.
+- 2.4 GHz / 5 GHz networks, mesh networks, or two routers may be on different subnets. Check whether Mac and iPhone IPs look like the same subnet, for example `192.168.1.x` and `192.168.1.y`.
+- A Mac connected to both Ethernet and WiFi can route traffic through the wrong network. Example: Ethernet on router A, WiFi on router B, iPhone on router B. Use `route -n get <iPhone WiFi IP>` and check `interface` / `source address`; if it points to the wrong network, unplug Ethernet, disable the unrelated WiFi, or change network service order before testing again.
+- Other iPhone VPN/proxy apps can conflict with Tailscale. Tailscale's own docs note that iOS usually only supports one active VPN at a time, and another VPN may drop Tailscale traffic. Test with only Tailscale enabled. If you need a proxy, prefer a Tailscale exit node. See [Tailscale + other VPNs](https://tailscale.com/docs/reference/faq/other-vpns).
+- Mac global proxy/VPN rules should bypass LAN and Tailscale ranges: `192.168.0.0/16`, `10.0.0.0/8`, `172.16.0.0/12`, and `100.64.0.0/10`.
+
+### pymobiledevice3 / tunnel pitfalls
+
+> **WDA started via xcodebuild is NOT accessible through the tunnel!**
+>
+> `xcodebuild` launches WDA on the phone's WiFi IP, for example `192.168.1.14:8100`, but that port is not routed through the pymobiledevice3 tunnel. To expose WDA through the tunnel, use:
+> ```bash
+> python3.12 -m pymobiledevice3 developer dvt xcuitest --rsd <tunnel-address> <port> <BundleID>
+> ```
+
+> **xcuitest connects then drops after ~20 seconds?**
+>
+> Older pymobiledevice3 releases need the DTX fix from [PR #1665](https://github.com/doronz88/pymobiledevice3/pull/1665). The PR is merged to upstream master, but PyPI may lag. Run the compatibility patch only if your installed version is missing the fix:
+> ```bash
+> sudo python3.12 scripts/patch_pymobiledevice3.py
+> ```
+> The script is safe to re-run and no-ops when the fix is already present.
+
+> **Can't create a WiFi tunnel with Python 3.12?**
+>
+> iOS 18.2+ removed QUIC. TCP tunnel requires Python 3.13's SSL PSK support. Use Python 3.13 for the tunnel and Python 3.12 for xcuitest.
+
+> **devicectl shows "connecting"?**
+>
+> Restart `remoted`:
+> ```bash
+> sudo pkill -9 remoted
+> # Wait 5 seconds; the device should become "available (paired)"
+> ```
+
+## ⚠️ Security: HTTP Mode Authentication
+
+The local stdio path used by Claude Code / Codex never opens a port — it is safe. The risk is HTTP mode (`server.py --http` / `server_chatgpt.py`), which exposes real write actions: tap, type, screenshot, read clipboard, open any app. **Do not run HTTP mode unauthenticated on a public URL.**
+
+The server now ships with built-in **OAuth 2.0 + Bearer** authentication. HTTP mode **refuses to start without an access token.**
+
+### One-time setup
+
+```bash
+python scripts/generate_oauth_creds.py
+```
+
+This writes `~/.wda-oauth.json` (chmod 600) with a random `client_id`, `client_secret`, and `access_token`. The access token is the Bearer header your MCP clients send. Treat it like a password.
+
+### Start HTTP mode
+
+```bash
+bash scripts/start_http.sh
+```
+
+Or directly (foreground):
+
+```bash
+python server.py --http
+```
+
+The runner reads `~/.wda-oauth.json` (or `WDA_OAUTH_*` env vars), starts uvicorn on `0.0.0.0:8200`, and exposes:
+
+- `/mcp` — the MCP endpoint. Requires `Authorization: Bearer <access_token>` from non-loopback clients.
+- `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server` — OAuth discovery.
+- `/oauth/authorize`, `/oauth/token` — full OAuth 2.0 flow (`authorization_code` and `client_credentials`) for MCP clients that prefer enrollment over a static Bearer token.
+
+Loopback clients (`127.0.0.1`, `::1`) are allowed without auth so a local agent on the same machine can connect over `http://localhost:8200/mcp` without needing the token.
+
+### Connecting MCP clients
+
+| Client | How to authenticate |
+|--------|---------------------|
+| **claude.ai custom connector** | Paste `Authorization: Bearer <access_token>` as a custom header |
+| **ChatGPT Developer Mode** | Paste the token, or let it run the OAuth `authorization_code` flow |
+| **curl / scripts** | `curl -H "Authorization: Bearer $TOKEN" https://your-url/mcp` |
+| **Local Claude Code via stdio** | No token needed — stdio bypasses HTTP entirely |
+
+### Defense in depth (recommended for stable public URLs)
+
+For a domain you keep online long-term, layer Cloudflare Access in front of the tunnel:
+
+1. Cloudflare Zero Trust → Access → Applications → Add self-hosted application
+2. Application domain = your tunnel hostname (e.g. `wda-mcp.example.com`)
+3. Add a policy, e.g. `Include → Emails → your@email.com`, or GitHub / Google login
+
+Even if your access token leaks, callers still need to clear Cloudflare Access first. ChatGPT/Claude.ai connectors can use Cloudflare Access **Service Tokens** (set as a header) for non-interactive auth.
+
+### Always
+
+- Treat ngrok / `*.trycloudflare.com` URLs as **temporary testing only**. Stop the tunnel when done.
+- Never commit `~/.wda-oauth.json` or paste the access token into screenshots, chats, issues, or git.
+- If you suspect a leak: regenerate with `python scripts/generate_oauth_creds.py --force`, restart the server.
+- Do not weaken the runner (e.g. removing the `access_token` check) just to "make it work" with a misconfigured client. Fix the client.
+
 ## Using with claude.ai (Chat Mode)
+
+> ⚠️ Before exposing anything publicly, complete the [Security setup](#️-security-http-mode-authentication) above (`generate_oauth_creds.py` + `start_http.sh`). The flow below covers how to expose port `8200`; the server enforces Bearer auth on top.
 
 The most fun way to use WDA-MCP is through **chat** — talking to Claude naturally and having it control your phone. "Go check my messages", "screenshot my home screen", "open the red app on the second page" — all in conversation.
 
@@ -278,7 +536,7 @@ This requires **HTTP mode** since claude.ai needs to reach your MCP server over 
 brew install ngrok
 
 # Start MCP server in HTTP mode
-python server.py --http --port 8200 &
+python server.py --http &
 
 # Expose to internet
 ngrok http 8200
@@ -297,7 +555,7 @@ cloudflared tunnel login
 cloudflared tunnel create wda-mcp
 
 # Start MCP server
-python server.py --http --port 8200 &
+python server.py --http &
 
 # Expose via tunnel
 cloudflared tunnel --url http://localhost:8200
@@ -339,7 +597,7 @@ Deploy wda-mcp on a VPS. Mac is only needed once to compile WDA.
 The VPS handles three roles:
 1. **MCP server** — Claude connects here
 2. **Tailscale node** — reaches iPhone via Tailscale
-3. **Exit node** (optional) — can replace Shadowrocket for users who need VPN + WDA simultaneously
+3. **Exit node** (optional) — can replace an extra VPN/proxy path to reduce VPN conflicts
 
 ### Setup on VPS
 
@@ -386,30 +644,6 @@ First-time WDA compilation still requires a Mac + Xcode. After that, VPS handles
          └─ Tailscale VPN (anywhere — WiFi, 5G, any network)
 ```
 
-## Common Pitfalls
-
-### Network Environment
-
-> **WiFi direct connection fails (No route to host)?** Check two things: **(1)** Are Mac and iPhone on the **same WiFi SSID**? Many routers have separate 2.4G and 5G networks on different subnets — make sure both devices connect to the same one. **(2)** Is **AP isolation** enabled? Some routers block devices on the same WiFi from communicating. Fix: disable "AP Isolation" / "Client Isolation" in router settings. Or use Tailscale IP to bypass both issues.
-
-> **iPhone Tailscale keeps going offline?** Go to iPhone **Settings → General → VPN & Device Management → VPN → Tailscale → enable "Connect On Demand"**. Without this, iOS kills Tailscale in the background.
-
-### WiFi / Wireless Debugging
-
-> **WDA started via xcodebuild is NOT accessible through the tunnel!** Use `pymobiledevice3 developer dvt xcuitest --rsd` to launch WDA — this exposes WDA's port through the tunnel. xcodebuild launches WDA on the phone's WiFi IP which is not routed through the tunnel.
-
-> **xcuitest connects then drops after ~20 seconds?** You need to patch pymobiledevice3. Run `sudo python3.12 scripts/patch_pymobiledevice3.py`. See [PR #1665](https://github.com/doronz88/pymobiledevice3/pull/1665).
-
-> **Can't create WiFi tunnel with Python 3.12?** iOS 18.2+ removed QUIC. TCP tunnel requires Python 3.13's SSL PSK support. Use Python 3.13 for the tunnel, Python 3.12 for xcuitest.
-
-> **devicectl shows "connecting"?** Restart remoted: `sudo pkill -9 remoted` — wait 5 seconds.
-
-### 5G / Mobile Data
-
-> **WDA dies when WiFi is turned off?** Don't turn off the WiFi **toggle** (Settings → WiFi → grey switch). Just disconnect from the network or walk out of range. WiFi toggle ON + not connected = WDA stays alive.
-
-> **Can't start WDA on 5G?** Correct — iOS only enables RemotePairing when WiFi is connected. Start WDA at home on WiFi, then go out on 5G. WDA keeps running as long as the WiFi toggle stays on.
-
 ## FAQ
 
 **Q: Do I need a paid Apple Developer account?**
@@ -425,7 +659,7 @@ A: WDA uses **points**, not pixels. iPhone 14 Pro is 393×852 points. Use `wda_s
 A: Make sure the iPhone doesn't auto-lock. Go to Settings → Display & Brightness → Auto-Lock → Never (at least during use).
 
 **Q: Can I use this without Tailscale?**
-A: Yes. WDA-MCP falls back to LAN IP discovery and the WDA log file. Tailscale just adds remote access.
+A: Yes, but the Mac must be able to reach the iPhone WiFi IP. If needed, find `ServerURLHere` in `/tmp/wda_run.log`; automatic IP guessing is only a fallback. Tailscale just adds remote access.
 
 ## Without a Mac
 

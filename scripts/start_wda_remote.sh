@@ -3,7 +3,7 @@
 # Usage: ./start_wda_remote.sh <TAILSCALE_IP> <DEVICE_UDID> <BUNDLE_ID>
 #
 # Example:
-#   ./start_wda_remote.sh 100.71.146.51 00008120-000854941A3B401E com.yourname.WebDriverAgentRunner.xctrunner
+#   ./start_wda_remote.sh 100.x.x.x 00008120-XXXXXXXXXXXXXXXX com.yourname.WebDriverAgentRunner.xctrunner
 
 set -e
 
@@ -16,9 +16,9 @@ echo "Tailscale IP: $TAILSCALE_IP"
 echo "Device UDID:  $DEVICE_UDID"
 echo "Bundle ID:    $BUNDLE_ID"
 
-# Step 0: Apply DTX patch if needed
+# Step 0: Check/apply DTX compatibility fix if needed
 echo ""
-echo "[1/4] Checking pymobiledevice3 patch..."
+echo "[1/4] Checking pymobiledevice3 DTX fix..."
 python3.12 "$(dirname "$0")/patch_pymobiledevice3.py"
 
 # Step 1: Check RemotePairing port
@@ -28,7 +28,14 @@ python3.12 -c "
 import socket; s=socket.socket(); s.settimeout(3)
 s.connect(('$TAILSCALE_IP', 49152)); s.close()
 print('RemotePairing port OPEN')
-" || { echo "ERROR: Port 49152 closed. Is iPhone WiFi toggle ON?"; exit 1; }
+" || {
+  echo "ERROR: Port 49152 closed."
+  echo "For wireless start/restart, the iPhone must be paired in Xcode and RemotePairing must be reachable."
+  echo "If cellular handoff made Tailscale reconnect, wait for Tailscale to come back and retry."
+  echo "If 49152 stays closed, start WDA on WiFi first, then leave WiFi and keep controlling it."
+  echo "During setup, disable other VPN/proxy apps and test with only Tailscale enabled."
+  exit 1
+}
 
 # Step 2: Create tunnel (needs sudo)
 echo ""
