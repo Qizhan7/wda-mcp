@@ -229,9 +229,77 @@ def wda_map_apps() -> str:
     return f"Mapped {len(app_map)} items across {page - 1} pages. Saved to app_map.json"
 
 
+def _is_home_screen() -> bool:
+    """Check if we're on the home screen (app name is empty)."""
+    sid = _wda_get_session()
+    r = _wda_request("GET", f"/session/{sid}/source")
+    if "error" in r:
+        return False
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(r.get("value", "<x/>"))
+        name = root.attrib.get("name", "").strip()
+        return name == "" or name == "SpringBoard"
+    except Exception:
+        return False
+
+
+@mcp.tool()
+def wda_launch(name: str) -> str:
+    """Open any app by name using Spotlight search. Works for any installed app, no cache needed."""
+    sid = _wda_get_session()
+    # Go home first
+    _wda_request("POST", f"/session/{sid}/wda/homescreen")
+    time.sleep(0.5)
+    if not _is_home_screen():
+        _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration",
+                     {"fromX": 196, "fromY": 845, "toX": 196, "toY": 100, "duration": 0.08})
+        time.sleep(1)
+
+    # Pull down for Spotlight search
+    _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration",
+                 {"fromX": 196, "fromY": 400, "toX": 196, "toY": 600, "duration": 0.3})
+    time.sleep(1)
+
+    # Type app name
+    _wda_request("POST", f"/session/{sid}/wda/keys", {"value": list(name)})
+    time.sleep(1.5)
+
+    # Find and tap the app in search results
+    import xml.etree.ElementTree as ET
+    r = _wda_request("GET", f"/session/{sid}/source")
+    if "error" in r:
+        return f"Search failed: {r.get('error')}"
+    try:
+        root = ET.fromstring(r.get("value", "<x/>"))
+        name_lower = name.lower()
+        for elem in root.iter():
+            label = elem.attrib.get("label", "")
+            etype = elem.attrib.get("type", "")
+            if name_lower in label.lower() and "Cell" in etype:
+                x = int(elem.attrib.get("x", 0))
+                y = int(elem.attrib.get("y", 0))
+                w = int(elem.attrib.get("width", 0))
+                h = int(elem.attrib.get("height", 0))
+                cx, cy = x + w // 2, y + h // 2
+                _wda_request("POST", f"/session/{sid}/actions", {
+                    "actions": [{"type": "pointer", "id": "f1",
+                                 "parameters": {"pointerType": "touch"},
+                                 "actions": [
+                                     {"type": "pointerMove", "duration": 0, "x": cx, "y": cy},
+                                     {"type": "pointerDown", "button": 0},
+                                     {"type": "pause", "duration": 100},
+                                     {"type": "pointerUp", "button": 0}]}]
+                })
+                return f"Launched '{label}' via Spotlight"
+        return f"'{name}' not found in Spotlight results. Try exact app name."
+    except Exception as e:
+        return f"Error: {e}"
+
+
 @mcp.tool()
 def wda_open_app(name: str) -> str:
-    """Open an app by name using cached app_map.json. Much faster than searching every time."""
+    """Open an app by name using cached positions (fast) or Spotlight search (fallback)."""
     if not os.path.exists(APP_MAP_FILE):
         result = wda_map_apps()
         if not os.path.exists(APP_MAP_FILE):
