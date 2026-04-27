@@ -211,7 +211,7 @@ def wda_type(text: str) -> str:
 
 @mcp.tool()
 def wda_home() -> str:
-    """Go to home screen."""
+    """Go to home screen. WARNING: if already on home screen, this may open the app switcher instead. Use wda_check first to confirm current screen before navigating."""
     sid = _wda_get_session()
     r = _wda_request("POST", f"/session/{sid}/wda/homescreen")
     if "error" in r:
