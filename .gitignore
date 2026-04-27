@@ -3,3 +3,4 @@ __pycache__/
 .env
 screenshots/
 app_map.json
+.screen_cache.json

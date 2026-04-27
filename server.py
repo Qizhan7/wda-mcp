@@ -20,6 +20,39 @@ SCREENSHOTS_DIR = os.environ.get("WDA_SCREENSHOTS_DIR", os.path.expanduser("~/sc
 
 _wda_session_id: str | None = None
 _wda_base: str | None = None
+_screen: dict | None = None  # {"w": 393, "h": 852, "cx": 196, "cy": 426, ...}
+
+SCREEN_CACHE = os.path.join(os.path.dirname(__file__), ".screen_cache.json")
+
+def _get_screen() -> dict:
+    """Get screen dimensions and key coordinates. Cached after first call."""
+    global _screen
+    if _screen:
+        return _screen
+    if os.path.exists(SCREEN_CACHE):
+        with open(SCREEN_CACHE) as f:
+            _screen = json.load(f)
+            return _screen
+    sid = _wda_get_session()
+    r = _wda_request("GET", f"/session/{sid}/window/size")
+    if "error" in r:
+        # Fallback to iPhone 14 Pro defaults
+        w, h = 393, 852
+    else:
+        w = r.get("value", {}).get("width", 393)
+        h = r.get("value", {}).get("height", 852)
+    _screen = {
+        "w": w, "h": h,
+        "cx": w // 2,           # center x
+        "cy": h // 2,           # center y
+        "bottom": h - 7,        # bottom edge (home gesture start)
+        "top": 5,               # top edge (notification pull)
+        "spotlight_icon_x": int(w * 0.16),   # ~64 on 393w
+        "spotlight_icon_y": int(h * 0.18),   # ~154 on 852h
+    }
+    with open(SCREEN_CACHE, "w") as f:
+        json.dump(_screen, f)
+    return _screen
 
 
 def _wda_discover_ip() -> str:
@@ -216,7 +249,7 @@ def wda_home() -> str:
     r = _wda_request("POST", f"/session/{sid}/wda/homescreen")
     if "error" in r:
         r = _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
-            "fromX": 196, "fromY": 845, "toX": 196, "toY": 100, "duration": 0.08
+            "fromX": _get_screen()["cx"], "fromY": _get_screen()["bottom"], "toX": _get_screen()["cx"], "toY": 100, "duration": 0.08
         })
         if "error" in r:
             return f"Home failed: {r.get('error', 'unknown')}"
@@ -229,7 +262,7 @@ def wda_back() -> str:
     """Go back to previous page. Uses left edge swipe (iOS back gesture). Also tries tap '返回' button as fallback."""
     sid = _wda_get_session()
     r = _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
-        "fromX": 0, "fromY": 400, "toX": 250, "toY": 400, "duration": 0.2
+        "fromX": 0, "fromY": _get_screen()["cy"], "toX": int(_get_screen()["w"] * 0.64), "toY": _get_screen()["cy"], "duration": 0.2
     })
     if "error" in r:
         return f"Back failed: {r.get('error', 'unknown')}"
@@ -241,10 +274,10 @@ def wda_scroll(direction: str = "down") -> str:
     """Scroll the screen. direction: 'down', 'up', 'left', 'right'."""
     sid = _wda_get_session()
     swipes = {
-        "down":  {"fromX": 196, "fromY": 600, "toX": 196, "toY": 250, "duration": 0.3},
-        "up":    {"fromX": 196, "fromY": 250, "toX": 196, "toY": 600, "duration": 0.3},
-        "left":  {"fromX": 350, "fromY": 426, "toX": 50, "toY": 426, "duration": 0.3},
-        "right": {"fromX": 50, "fromY": 426, "toX": 350, "toY": 426, "duration": 0.3},
+        "down":  {"fromX": _get_screen()["cx"], "fromY": int(_get_screen()["h"] * 0.7), "toX": _get_screen()["cx"], "toY": int(_get_screen()["h"] * 0.3), "duration": 0.3},
+        "up":    {"fromX": _get_screen()["cx"], "fromY": int(_get_screen()["h"] * 0.3), "toX": _get_screen()["cx"], "toY": int(_get_screen()["h"] * 0.7), "duration": 0.3},
+        "left":  {"fromX": int(_get_screen()["w"] * 0.9), "fromY": _get_screen()["cy"], "toX": int(_get_screen()["w"] * 0.1), "toY": _get_screen()["cy"], "duration": 0.3},
+        "right": {"fromX": int(_get_screen()["w"] * 0.1), "fromY": _get_screen()["cy"], "toX": int(_get_screen()["w"] * 0.9), "toY": _get_screen()["cy"], "duration": 0.3},
     }
     params = swipes.get(direction.lower())
     if not params:
@@ -283,7 +316,7 @@ def wda_notifications() -> str:
     sid = _wda_get_session()
     # Pull down from top
     _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
-        "fromX": 196, "fromY": 5, "toX": 196, "toY": 500, "duration": 0.3
+        "fromX": _get_screen()["cx"], "fromY": _get_screen()["top"], "toX": _get_screen()["cx"], "toY": _get_screen()["cy"], "duration": 0.3
     })
     time.sleep(0.5)
     r = _wda_request("GET", f"/session/{sid}/source")
@@ -300,7 +333,7 @@ def wda_notifications() -> str:
         result += "\n".join(f"  - {t}" for t in texts[:30])
         # Dismiss notification center
         _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
-            "fromX": 196, "fromY": 500, "toX": 196, "toY": 5, "duration": 0.3
+            "fromX": _get_screen()["cx"], "fromY": _get_screen()["cy"], "toX": _get_screen()["cx"], "toY": _get_screen()["top"], "duration": 0.3
         })
         return result
     except Exception as e:
@@ -348,12 +381,12 @@ def wda_launch(name: str) -> str:
     time.sleep(0.5)
     if not _is_home_screen():
         _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration",
-                     {"fromX": 196, "fromY": 845, "toX": 196, "toY": 100, "duration": 0.08})
+                     {"fromX": _get_screen()["cx"], "fromY": _get_screen()["bottom"], "toX": _get_screen()["cx"], "toY": 100, "duration": 0.08})
         time.sleep(0.5)
 
     # Pull down for Spotlight search
     _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration",
-                 {"fromX": 196, "fromY": 400, "toX": 196, "toY": 600, "duration": 0.3})
+                 {"fromX": _get_screen()["cx"], "fromY": _get_screen()["cy"], "toX": _get_screen()["cx"], "toY": int(_get_screen()["h"] * 0.7), "duration": 0.3})
     time.sleep(0.5)
 
     # Type app name and tap first result (top match position is consistent)
@@ -365,7 +398,7 @@ def wda_launch(name: str) -> str:
         "actions": [{"type": "pointer", "id": "f1",
                      "parameters": {"pointerType": "touch"},
                      "actions": [
-                         {"type": "pointerMove", "duration": 0, "x": 64, "y": 154},
+                         {"type": "pointerMove", "duration": 0, "x": _get_screen()["spotlight_icon_x"], "y": _get_screen()["spotlight_icon_y"]},
                          {"type": "pointerDown", "button": 0},
                          {"type": "pause", "duration": 100},
                          {"type": "pointerUp", "button": 0}]}]
