@@ -215,7 +215,6 @@ def wda_home() -> str:
     sid = _wda_get_session()
     r = _wda_request("POST", f"/session/{sid}/wda/homescreen")
     if "error" in r:
-        # Fallback: full swipe from bottom (needs to go far enough to trigger home)
         r = _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
             "fromX": 196, "fromY": 845, "toX": 196, "toY": 100, "duration": 0.08
         })
@@ -223,6 +222,106 @@ def wda_home() -> str:
             return f"Home failed: {r.get('error', 'unknown')}"
         return "Home (swipe fallback)"
     return "Home"
+
+
+@mcp.tool()
+def wda_back() -> str:
+    """Go back to previous page. Swipes from left edge to right (iOS back gesture)."""
+    sid = _wda_get_session()
+    r = _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
+        "fromX": 5, "fromY": 400, "toX": 200, "toY": 400, "duration": 0.15
+    })
+    if "error" in r:
+        return f"Back failed: {r.get('error', 'unknown')}"
+    return "Back (edge swipe)"
+
+
+@mcp.tool()
+def wda_scroll(direction: str = "down") -> str:
+    """Scroll the screen. direction: 'down', 'up', 'left', 'right'."""
+    sid = _wda_get_session()
+    swipes = {
+        "down":  {"fromX": 196, "fromY": 600, "toX": 196, "toY": 250, "duration": 0.3},
+        "up":    {"fromX": 196, "fromY": 250, "toX": 196, "toY": 600, "duration": 0.3},
+        "left":  {"fromX": 350, "fromY": 426, "toX": 50, "toY": 426, "duration": 0.3},
+        "right": {"fromX": 50, "fromY": 426, "toX": 350, "toY": 426, "duration": 0.3},
+    }
+    params = swipes.get(direction.lower())
+    if not params:
+        return f"Unknown direction '{direction}'. Use: down, up, left, right"
+    r = _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", params)
+    if "error" in r:
+        return f"Scroll failed: {r.get('error', 'unknown')}"
+    return f"Scrolled {direction}"
+
+
+@mcp.tool()
+def wda_long_press(x: float, y: float, duration: float = 1.0) -> str:
+    """Long press at a point. duration in seconds (default 1s). Useful for context menus, voice messages, etc."""
+    sid = _wda_get_session()
+    r = _wda_request("POST", f"/session/{sid}/actions", {
+        "actions": [{
+            "type": "pointer", "id": "finger1",
+            "parameters": {"pointerType": "touch"},
+            "actions": [
+                {"type": "pointerMove", "duration": 0, "x": int(x), "y": int(y)},
+                {"type": "pointerDown", "button": 0},
+                {"type": "pause", "duration": int(duration * 1000)},
+                {"type": "pointerUp", "button": 0}
+            ]
+        }]
+    })
+    if "error" in r:
+        return f"Long press failed: {r.get('error', 'unknown')}"
+    return f"Long pressed ({x}, {y}) for {duration}s"
+
+
+@mcp.tool()
+def wda_notifications() -> str:
+    """Pull down notification center and read all visible notifications. Text-based, no screenshot."""
+    import xml.etree.ElementTree as ET
+    sid = _wda_get_session()
+    # Pull down from top
+    _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
+        "fromX": 196, "fromY": 5, "toX": 196, "toY": 500, "duration": 0.3
+    })
+    time.sleep(1.5)
+    r = _wda_request("GET", f"/session/{sid}/source")
+    if "error" in r:
+        return f"Failed: {r.get('error')}"
+    try:
+        root = ET.fromstring(r.get("value", "<x/>"))
+        texts = []
+        for elem in root.iter():
+            label = elem.attrib.get("label", "").strip()
+            if label and label not in texts and len(label) < 200:
+                texts.append(label)
+        result = f"Notifications ({len(texts)} items):\n"
+        result += "\n".join(f"  - {t}" for t in texts[:30])
+        # Dismiss notification center
+        _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
+            "fromX": 196, "fromY": 500, "toX": 196, "toY": 5, "duration": 0.3
+        })
+        return result
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool()
+def wda_clipboard() -> str:
+    """Read the iPhone clipboard content. Returns the text currently copied."""
+    sid = _wda_get_session()
+    r = _wda_request("POST", f"/session/{sid}/wda/getPasteboard")
+    if "error" in r:
+        return f"Clipboard failed: {r.get('error', 'unknown')}"
+    content = r.get("value", "")
+    if content:
+        import base64 as b64
+        try:
+            return f"Clipboard: {b64.b64decode(content).decode('utf-8')}"
+        except Exception:
+            return f"Clipboard (raw): {content}"
+    return "Clipboard is empty"
 
 
 def _is_home_screen() -> bool:
@@ -340,14 +439,16 @@ def wda_find(text: str) -> str:
 
 @mcp.tool()
 def wda_tap_text(text: str) -> str:
-    """Find an element by text and tap it. Combines wda_find + wda_tap in one call."""
-    sid = _wda_get_session()
-    r = _wda_request("GET", f"/session/{sid}/source")
-    if "error" in r:
-        return f"Find failed: {r.get('error', 'unknown')}"
+    """Find an element by text and tap it. Auto-retries for 3 seconds if not found (handles page loading)."""
     import xml.etree.ElementTree as ET
-    try:
-        root = ET.fromstring(r.get("value", "<x/>"))
+    sid = _wda_get_session()
+
+    for attempt in range(3):
+        r = _wda_request("GET", f"/session/{sid}/source")
+        if "error" in r:
+            return f"Find failed: {r.get('error', 'unknown')}"
+        try:
+            root = ET.fromstring(r.get("value", "<x/>"))
         text_lower = text.lower()
         for elem in root.iter():
             label = elem.attrib.get("label", "")
@@ -374,9 +475,14 @@ def wda_tap_text(text: str) -> str:
                 if "error" in tap_r:
                     return f"Found '{label or name}' but tap failed: {tap_r['error']}"
                 return f"Tapped '{label or name}' at ({cx}, {cy})"
-        return f"No element matching '{text}' found on screen"
-    except Exception as e:
-        return f"Error: {e}"
+            # Not found — wait and retry
+            if attempt < 2:
+                time.sleep(1.5)
+                continue
+            return f"No element matching '{text}' found on screen (tried 3 times)"
+        except Exception as e:
+            return f"Error: {e}"
+    return f"No element matching '{text}' found"
 
 
 @mcp.tool()
