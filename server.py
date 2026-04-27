@@ -43,13 +43,45 @@ def _get_screen() -> dict:
         h = r.get("value", {}).get("height", 852)
     _screen = {
         "w": w, "h": h,
-        "cx": w // 2,           # center x
-        "cy": h // 2,           # center y
-        "bottom": h - 7,        # bottom edge (home gesture start)
-        "top": 5,               # top edge (notification pull)
-        "spotlight_icon_x": int(w * 0.16),   # ~64 on 393w
-        "spotlight_icon_y": int(h * 0.18),   # ~154 on 852h
+        "cx": w // 2,
+        "cy": h // 2,
+        "bottom": h - 7,
+        "top": 5,
+        "spotlight_icon_x": None,
+        "spotlight_icon_y": None,
     }
+    # Calibrate Spotlight position by actually doing a search
+    import xml.etree.ElementTree as ET
+    try:
+        _wda_request("POST", f"/session/{sid}/wda/homescreen")
+        time.sleep(0.5)
+        _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration",
+                     {"fromX": w // 2, "fromY": h // 2, "toX": w // 2, "toY": int(h * 0.7), "duration": 0.3})
+        time.sleep(0.5)
+        _wda_request("POST", f"/session/{sid}/wda/keys", {"value": list("设置")})
+        time.sleep(1)
+        r2 = _wda_request("GET", f"/session/{sid}/source")
+        if "error" not in r2:
+            root = ET.fromstring(r2.get("value", "<x/>"))
+            for elem in root.iter():
+                label = elem.attrib.get("label", "")
+                etype = elem.attrib.get("type", "")
+                if "设置" in label and "Icon" in etype:
+                    ix = int(elem.attrib.get("x", 0))
+                    iy = int(elem.attrib.get("y", 0))
+                    iw = int(elem.attrib.get("width", 0))
+                    ih = int(elem.attrib.get("height", 0))
+                    _screen["spotlight_icon_x"] = ix + iw // 2
+                    _screen["spotlight_icon_y"] = iy + ih // 2
+                    break
+        # Dismiss Spotlight
+        _wda_request("POST", f"/session/{sid}/wda/homescreen")
+    except Exception:
+        pass
+    # Fallback if calibration failed
+    if not _screen["spotlight_icon_x"]:
+        _screen["spotlight_icon_x"] = int(w * 0.16)
+        _screen["spotlight_icon_y"] = int(h * 0.18)
     with open(SCREEN_CACHE, "w") as f:
         json.dump(_screen, f)
     return _screen
