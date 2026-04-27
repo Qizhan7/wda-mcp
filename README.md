@@ -6,6 +6,17 @@ A standalone [MCP](https://modelcontextprotocol.io) server that lets AI agents c
 
 Tap buttons, swipe through apps, take screenshots, type text, and inspect UI elements — all through natural language via any MCP-compatible client.
 
+> ### ⚠️ Breaking Change: HTTP mode now requires authentication
+>
+> If you were using HTTP mode (`server.py --http` or `server_chatgpt.py`) **before this update**, your server was open to anyone with the URL. HTTP mode now **refuses to start without OAuth credentials** and requires `Authorization: Bearer <token>` for all non-loopback requests.
+>
+> **Local stdio users (Claude Code / Codex) are not affected.**
+>
+> If you use HTTP mode, update in 3 steps:
+> 1. `python scripts/generate_oauth_creds.py` — generates `~/.wda-oauth.json`
+> 2. Restart the server — `bash scripts/start_http.sh`
+> 3. Update your claude.ai / ChatGPT connector with the OAuth Client ID and Secret from `~/.wda-oauth.json` (see [claude.ai setup](#adding-to-claudeai) or [ChatGPT setup](CHATGPT.md))
+
 ## Choose Your Route
 
 WDA-MCP needs full read+write MCP support: viewing the screen plus tapping, typing, and swiping. Read-only MCP = can see but can't control.
