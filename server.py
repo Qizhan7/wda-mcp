@@ -169,66 +169,6 @@ def wda_home() -> str:
     return "Home"
 
 
-APP_MAP_FILE = os.path.join(os.path.dirname(__file__), "app_map.json")
-
-@mcp.tool()
-def wda_map_apps() -> str:
-    """Scan all home screen pages and save app positions to app_map.json. Run once, reuse forever."""
-    import xml.etree.ElementTree as ET
-    sid = _wda_get_session()
-
-    # Go home first
-    _wda_request("POST", f"/session/{sid}/wda/homescreen")
-    time.sleep(1)
-
-    app_map = {}
-    page = 1
-    max_pages = 10
-    prev_apps = set()
-
-    while page <= max_pages:
-        r = _wda_request("GET", f"/session/{sid}/source")
-        if "error" in r:
-            break
-        try:
-            root = ET.fromstring(r.get("value", "<x/>"))
-        except Exception:
-            break
-
-        current_apps = set()
-        for elem in root.iter():
-            label = elem.attrib.get("label", "").strip()
-            name = elem.attrib.get("name", "").strip()
-            txt = label or name
-            if not txt or len(txt) > 40:
-                continue
-            x = int(elem.attrib.get("x", 0))
-            y = int(elem.attrib.get("y", 0))
-            w = int(elem.attrib.get("width", 0))
-            h = int(elem.attrib.get("height", 0))
-            etype = elem.attrib.get("type", "")
-            if w >= 50 and h >= 50 and 80 < y < 700 and txt not in app_map:
-                app_map[txt] = {"page": page, "x": x + w // 2, "y": y + h // 2}
-                current_apps.add(txt)
-
-        if current_apps and current_apps == prev_apps:
-            break
-        prev_apps = current_apps
-
-        # Swipe left to next page
-        _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration",
-                     {"fromX": 350, "fromY": 500, "toX": 50, "toY": 500, "duration": 0.3})
-        time.sleep(1)
-        page += 1
-
-    with open(APP_MAP_FILE, "w") as f:
-        json.dump(app_map, f, ensure_ascii=False, indent=2)
-
-    # Go back home
-    _wda_request("POST", f"/session/{sid}/wda/homescreen")
-    return f"Mapped {len(app_map)} items across {page - 1} pages. Saved to app_map.json"
-
-
 def _is_home_screen() -> bool:
     """Check if we're on the home screen (app name is empty)."""
     sid = _wda_get_session()
@@ -297,55 +237,6 @@ def wda_launch(name: str) -> str:
         return f"Error: {e}"
 
 
-@mcp.tool()
-def wda_open_app(name: str) -> str:
-    """Open an app by name using cached positions (fast) or Spotlight search (fallback)."""
-    if not os.path.exists(APP_MAP_FILE):
-        result = wda_map_apps()
-        if not os.path.exists(APP_MAP_FILE):
-            return f"Auto-scan failed: {result}"
-    with open(APP_MAP_FILE) as f:
-        app_map = json.load(f)
-
-    # Fuzzy match
-    name_lower = name.lower()
-    match = None
-    for app_name, info in app_map.items():
-        if name_lower in app_name.lower():
-            match = (app_name, info)
-            break
-    if not match:
-        similar = [k for k in app_map if any(c in k.lower() for c in name_lower)]
-        return f"'{name}' not found. Similar: {similar[:5]}. All apps: {list(app_map.keys())[:20]}"
-
-    app_name, info = match
-    target_page = info["page"]
-    sid = _wda_get_session()
-
-    # Go home first
-    _wda_request("POST", f"/session/{sid}/wda/homescreen")
-    time.sleep(0.5)
-
-    # Swipe to correct page
-    for _ in range(target_page - 1):
-        _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration",
-                     {"fromX": 350, "fromY": 500, "toX": 50, "toY": 500, "duration": 0.3})
-        time.sleep(0.5)
-
-    # Tap
-    _wda_request("POST", f"/session/{sid}/actions", {
-        "actions": [{
-            "type": "pointer", "id": "finger1",
-            "parameters": {"pointerType": "touch"},
-            "actions": [
-                {"type": "pointerMove", "duration": 0, "x": info["x"], "y": info["y"]},
-                {"type": "pointerDown", "button": 0},
-                {"type": "pause", "duration": 100},
-                {"type": "pointerUp", "button": 0}
-            ]
-        }]
-    })
-    return f"Opened '{app_name}' (page {target_page}, tap {info['x']},{info['y']})"
 
 
 @mcp.tool()
