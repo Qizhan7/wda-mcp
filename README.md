@@ -10,15 +10,29 @@ Tap buttons, swipe through apps, take screenshots, type text, and inspect UI ele
 
 | Tool | Description |
 |------|-------------|
-| `wda_status` | Check if WDA is running. Returns iOS version, IP, ready state |
-| `wda_screenshot` | Capture the iPhone screen. Returns the saved PNG path |
+| **Viewing** | |
+| `wda_check` | Primary screen viewer — returns current app + all visible text (saves tokens) |
+| `wda_info` | Comprehensive one-call: device, battery, screen size, active app + visible text |
+| `wda_screenshot` | Capture screen as PNG (fallback — use `wda_check` first to save tokens) |
+| `wda_source` | Full UI element tree as XML (labels, types, coordinates) |
+| `wda_find` | Search elements by text, returns matching labels + tap coordinates |
+| **Actions** | |
 | `wda_tap` | Tap a point on screen (x, y in points) |
-| `wda_swipe` | Swipe between two points with configurable duration |
+| `wda_tap_text` | Find element by text and tap it in one call (auto-retries 3x for loading pages) |
+| `wda_long_press` | Long press at a point (context menus, voice messages, etc.) |
 | `wda_type` | Type text into the focused input field |
-| `wda_home` | Swipe up to go to the home screen (Face ID devices) |
-| `wda_source` | Get the UI element tree (XML with labels and coordinates) |
-| `wda_start` | Start or restart the WDA process on the iPhone |
-| `wda_renew` | Rebuild WDA to renew the 7-day free signing certificate |
+| `wda_swipe` | Swipe between two points with configurable duration |
+| **Navigation** | |
+| `wda_home` | Go to home screen |
+| `wda_back` | Go back to previous page (iOS left-edge swipe gesture) |
+| `wda_scroll` | Scroll screen — direction: `down`, `up`, `left`, `right` |
+| `wda_launch` | Open any app via Spotlight search (no cache needed) |
+| **Utility** | |
+| `wda_notifications` | Pull down notification center + read all notifications as text |
+| `wda_clipboard` | Read clipboard content |
+| `wda_status` | Check if WDA is running and ready |
+| `wda_start` | Start/restart WDA (auto Tailscale tunnel or local xcodebuild) |
+| `wda_renew` | Rebuild WDA to renew 7-day signing certificate |
 
 ## Prerequisites
 

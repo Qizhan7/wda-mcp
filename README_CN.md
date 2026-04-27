@@ -10,15 +10,29 @@
 
 | 工具 | 功能 |
 |------|------|
-| `wda_status` | 检查 WDA 运行状态，返回 iOS 版本、IP、就绪状态 |
-| `wda_screenshot` | 截取 iPhone 屏幕，返回 PNG 文件路径 |
-| `wda_tap` | 点击屏幕某个坐标（x, y，单位是 point） |
-| `wda_swipe` | 在两点之间滑动，可配置持续时间 |
-| `wda_type` | 在当前输入框输入文字 |
-| `wda_home` | 回到主屏幕（上滑手势，Face ID 机型） |
-| `wda_source` | 获取当前屏幕的 UI 元素树（XML，包含标签和坐标） |
-| `wda_start` | 启动或重启 WDA 服务 |
-| `wda_renew` | 重新编译 WDA 以续签 7 天免费证书 |
+| **查看** | |
+| `wda_check` | 首选查看方式——返回当前 app + 屏幕所有文字（省 token） |
+| `wda_info` | 一次返回：设备信息、电池、屏幕尺寸、当前 app + 屏幕文字 |
+| `wda_screenshot` | 截图保存 PNG（兜底——先用 `wda_check`，看不清再截图） |
+| `wda_source` | 完整 UI 元素树 XML（标签、类型、坐标） |
+| `wda_find` | 按文字搜索元素，返回匹配的标签 + 点击坐标 |
+| **操作** | |
+| `wda_tap` | 点击坐标（x, y，单位 point） |
+| `wda_tap_text` | 按文字找到元素并点击（页面加载中自动重试 3 次） |
+| `wda_long_press` | 长按（弹出菜单、语音消息、删除等） |
+| `wda_type` | 输入文字 |
+| `wda_swipe` | 两点间滑动 |
+| **导航** | |
+| `wda_home` | 回主屏幕 |
+| `wda_back` | 返回上一页（iOS 左边缘右滑手势） |
+| `wda_scroll` | 滚动——方向：`down`、`up`、`left`、`right` |
+| `wda_launch` | Spotlight 搜索打开任意 app |
+| **工具** | |
+| `wda_notifications` | 下拉通知栏 + 读取所有通知文字 |
+| `wda_clipboard` | 读取剪贴板内容 |
+| `wda_status` | 检查 WDA 是否运行 |
+| `wda_start` | 启动/重启 WDA（自动 Tailscale 或本地 xcodebuild） |
+| `wda_renew` | 续签 7 天证书 |
 
 ## 前置条件
 
