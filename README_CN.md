@@ -32,14 +32,14 @@ WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、
 
 ### OpenAI（ChatGPT / Codex）
 
-| 产品 | 自定义 MCP？ | 能操控？ | 推荐入口 |
-|------|:----------:|:------:|---------|
-| **ChatGPT 网页版** | ✅ Developer Mode | ⚠️ 看账号/工作区权限 | `server_chatgpt.py` + HTTPS `/mcp` |
-| **手机浏览器打开 ChatGPT 网页版** | ✅ 可尝试 | ⚠️ 看网页端是否开放入口 | 同上 |
-| **ChatGPT 原生手机 App** | ⚠️ 不稳定/不建议 | ⚠️ 不保证 | 暂时用浏览器网页版 |
-| **Codex CLI / Codex App** | ✅ | ✅ | `server.py` stdio |
+| 产品 | 自定义 MCP？ | 能操控？ | 最低计划 | 推荐入口 |
+|------|:----------:|:------:|---------|---------|
+| **ChatGPT 网页版** | ✅ Developer Mode | ✅ | Plus ($20/月) | `server_chatgpt.py` + HTTPS `/mcp` |
+| **手机浏览器打开 ChatGPT 网页版** | ✅ 可尝试 | ✅ | Plus | 同上 |
+| **ChatGPT 原生手机 App** | ❌ 写操作被禁 | ❌ | — | 用手机浏览器打开 chatgpt.com |
+| **Codex CLI / Codex App** | ✅ | ✅ | — | `server.py` stdio |
 
-ChatGPT Developer Mode / MCP Apps 仍在 beta。写操作通常会弹确认框，完整读写能力会受账号、计划和工作区开关影响。OpenAI 内置连接器（如 Drive、Notion）和自定义 MCP 不是一回事；这里说的是你自己暴露的 WDA-MCP。
+自定义 MCP 需要开启 [Developer Mode](https://help.openai.com/en/articles/12584461)，支持 Plus、Pro、Team、Enterprise、Edu 计划。Free 和 Go 不能添加自定义 MCP（Go 只有 OpenAI 内置连接器）。开了 Developer Mode 后所有支持的计划都是完整读写，没有计划间差异。写操作可能会弹确认框。
 
 ### 其他 MCP 客户端
 
@@ -89,6 +89,15 @@ ChatGPT Developer Mode / MCP Apps 仍在 beta。写操作通常会弹确认框�
 - 免费 Apple 开发者账号（用于代码签名）
 
 ## 快速开始
+
+### 0. 检查环境（可选）
+
+```bash
+bash scripts/check.sh                    # 不检查 iPhone
+bash scripts/check.sh <TAILSCALE_IP>     # 同时检查 iPhone 连通性
+```
+
+检查 Python 版本、pymobiledevice3、Tailscale，以及可选的 iPhone 连通性。标 ❌ 的先修再继续。
 
 ### 1. 安装依赖
 

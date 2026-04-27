@@ -4,8 +4,19 @@
 
 适用入口：
 - ChatGPT 网页版：推荐。
-- 手机浏览器打开 `chatgpt.com`：可以试，本质上还是网页版。
-- ChatGPT iOS/Android 原生 App：暂时不要当作稳定入口。
+- 手机浏览器打开 `chatgpt.com`：可以用，本质上还是网页版。
+- ChatGPT iOS/Android 原生 App：**不能用** — OpenAI 在原生 App 上禁了 MCP 写操作。只读工具能加载，但 tap/type/swipe 会被拒绝。用手机浏览器打开 chatgpt.com 代替。
+
+## 快速通道
+
+想一步到位跑完 Step 0–4：
+
+```bash
+bash scripts/prep_for_chatgpt.sh                      # 默认端口 8200
+bash scripts/prep_for_chatgpt.sh --url https://your-host/mcp   # 同时验证公网 URL
+```
+
+脚本会检查端口/tunnel 状态、没有 OAuth 就自动生成、启服务器、验证本地和公网端点。成功后直接打印 connector URL 和 Bearer token，复制到 ChatGPT 就行。想一步步手动来的话，继续往下看。
 
 ## 0. 先盘点现状（1 分钟，省一堆 debug）
 

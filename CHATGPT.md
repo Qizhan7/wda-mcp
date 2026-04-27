@@ -4,8 +4,19 @@ This path is separate from the Claude / Codex stdio path. If Claude already work
 
 Supported entry points:
 - ChatGPT web: recommended.
-- `chatgpt.com` in a mobile browser: worth trying; it is still the web app.
-- ChatGPT iOS/Android native app: do not treat it as the stable custom MCP path yet.
+- `chatgpt.com` in a mobile browser: works; it is still the web app.
+- ChatGPT iOS/Android native app: **does not work** — OpenAI blocks MCP write actions on native apps. Read-only tools load, but tap/type/swipe are rejected. Use the mobile browser instead.
+
+## Fast path
+
+If you want Steps 0–4 done in one shot:
+
+```bash
+bash scripts/prep_for_chatgpt.sh                      # default port 8200
+bash scripts/prep_for_chatgpt.sh --url https://your-host/mcp   # also verify public URL
+```
+
+The script checks what's running, generates OAuth if missing, starts the server, and verifies both local and public endpoints. On success it prints the connector URL and Bearer token to paste into ChatGPT. If you prefer to walk through each step manually, continue below.
 
 ## 0. Take stock first (1 minute, saves a lot of debugging)
 

@@ -32,14 +32,14 @@ WDA-MCP needs full read+write MCP support: viewing the screen plus tapping, typi
 
 ### OpenAI (ChatGPT / Codex)
 
-| Product | Custom MCP? | Read+Write? | Recommended entry |
-|---------|:-----------:|:-----------:|-------------------|
-| **ChatGPT web** | ✅ Developer Mode | ⚠️ depends on account/workspace | `server_chatgpt.py` + HTTPS `/mcp` |
-| **ChatGPT in a mobile browser** | ✅ worth trying | ⚠️ depends on web UI access | Same as above |
-| **ChatGPT native mobile app** | ⚠️ not reliable/recommended | ⚠️ not guaranteed | Use browser web instead |
-| **Codex CLI / Codex App** | ✅ | ✅ | `server.py` stdio |
+| Product | Custom MCP? | Read+Write? | Min. plan | Recommended entry |
+|---------|:-----------:|:-----------:|-----------|-------------------|
+| **ChatGPT web** | ✅ Developer Mode | ✅ | Plus ($20/mo) | `server_chatgpt.py` + HTTPS `/mcp` |
+| **ChatGPT in a mobile browser** | ✅ worth trying | ✅ | Plus | Same as above |
+| **ChatGPT native mobile app** | ❌ write blocked | ❌ | — | Use mobile browser (chatgpt.com) instead |
+| **Codex CLI / Codex App** | ✅ | ✅ | — | `server.py` stdio |
 
-ChatGPT Developer Mode / MCP Apps are still beta. Write actions usually show a confirmation dialog, and full read/write access depends on your account, plan, and workspace settings. OpenAI built-in connectors such as Drive or Notion are different from your own custom WDA-MCP server.
+Custom MCP requires [Developer Mode](https://help.openai.com/en/articles/12584461), available on Plus, Pro, Team, Enterprise, and Edu plans. Free and Go plans cannot add custom MCP servers (Go only gets OpenAI's built-in connectors). With Developer Mode on, all eligible plans get full read+write MCP — no per-plan restriction. Write actions may show a confirmation dialog.
 
 ### Other MCP Clients
 
@@ -89,6 +89,15 @@ ChatGPT Developer Mode / MCP Apps are still beta. Write actions usually show a c
 - A free Apple Developer account (for code signing)
 
 ## Quick Setup
+
+### 0. Check your environment (optional)
+
+```bash
+bash scripts/check.sh                    # without iPhone check
+bash scripts/check.sh <TAILSCALE_IP>     # with iPhone connectivity check
+```
+
+This verifies Python versions, pymobiledevice3, Tailscale, and optionally iPhone reachability. Fix anything marked ❌ before continuing.
 
 ### 1. Install dependencies
 
