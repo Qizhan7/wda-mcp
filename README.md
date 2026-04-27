@@ -4,7 +4,59 @@
 
 A standalone [MCP](https://modelcontextprotocol.io) server that lets AI agents control a physical iPhone over the network. Built on Apple's [WebDriverAgent](https://github.com/appium/WebDriverAgent) and optionally [Tailscale](https://tailscale.com) for secure remote access from anywhere — not just your LAN.
 
-Tap buttons, swipe through apps, take screenshots, type text, and inspect UI elements — all through natural language via any MCP-compatible client. Works with **Claude Code** (CLI), **claude.ai** (chat), and **Claude Desktop**.
+Tap buttons, swipe through apps, take screenshots, type text, and inspect UI elements — all through natural language via any MCP-compatible client.
+
+## Platform Compatibility
+
+WDA-MCP needs full read+write MCP support (viewing AND tapping/typing). Read-only MCP = can see the screen but can't control it.
+
+### Anthropic (Claude)
+
+| Product | Custom MCP? | Read+Write? | Min Plan | Cost |
+|---------|:-----------:|:-----------:|----------|------|
+| **claude.ai** (web) | ✅ | ✅ | Free (1 connector) | $0 |
+| **Claude Desktop** | ✅ | ✅ | Free | $0 |
+| **Claude Code** (CLI) | ✅ | ✅ | Pro or API credits | ~$20/mo |
+
+Best free option. Even the free plan on claude.ai supports 1 custom MCP connector with full control.
+
+### OpenAI (ChatGPT)
+
+| Product | Custom MCP? | Read+Write? | Min Plan | Cost |
+|---------|:-----------:|:-----------:|----------|------|
+| **ChatGPT** (web/app) | ✅ | ⚠️ read-only on Plus/Pro | Business | $25/user/mo |
+| **ChatGPT** Free/Go | ❌ | — | — | — |
+| **Codex CLI** | ✅ | ✅ | API credits | Pay-as-go |
+
+⚠️ **ChatGPT Plus ($20/mo) can only VIEW, not control.** Write actions (tap, type, swipe) are blocked in Developer Mode on Plus/Pro. Full control requires Business ($25/user/mo) or Enterprise.
+
+### Google (Gemini)
+
+| Product | Custom MCP? | Read+Write? | Min Plan | Cost |
+|---------|:-----------:|:-----------:|----------|------|
+| **Gemini CLI** | ✅ | ✅ | Free Google account | $0 |
+| **Gemini web** (gemini.google.com) | ❌ | — | — | Not available |
+| **Gemini Enterprise** (Cloud) | ✅ | ✅ | Cloud billing | $$$ |
+
+Gemini CLI is free and fully capable. Gemini web app (free or Advanced $20/mo) does NOT support custom MCP.
+
+### Others
+
+| Product | Custom MCP? | Read+Write? | Min Plan | Cost |
+|---------|:-----------:|:-----------:|----------|------|
+| **Mistral Le Chat** | ✅ | ✅ | Free | $0 |
+| **Cursor** | ✅ | ✅ | Pro | $20/mo |
+| **Windsurf** | ✅ | ✅ | Free | $0 |
+| **Cline** (VS Code) | ✅ | ✅ | Free (needs LLM API) | $0 + API |
+| **VS Code + Copilot** | ✅ | ✅ | Copilot sub | $10/mo |
+
+### Best options by budget
+
+| Budget | Best choice |
+|--------|------------|
+| **$0** | claude.ai free (1 connector), Gemini CLI, Mistral Le Chat |
+| **$20/mo** | Claude Pro (unlimited), Cursor Pro |
+| **Full power** | Claude Max, Claude Code |
 
 ## Tools
 

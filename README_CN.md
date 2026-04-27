@@ -4,7 +4,59 @@
 
 一个独立的 [MCP](https://modelcontextprotocol.io) 服务器，让 AI 通过网络控制你的 iPhone。基于 Apple 的 [WebDriverAgent](https://github.com/appium/WebDriverAgent)，配合 [Tailscale](https://tailscale.com) 实现从任何地方远程控制——不限于局域网。
 
-点击按钮、滑动屏幕、截图、输入文字、查看 UI 元素——全部通过自然语言完成。支持 **Claude Code**（命令行）、**claude.ai**（网页聊天）和 **Claude Desktop**。
+点击按钮、滑动屏幕、截图、输入文字、查看 UI 元素——全部通过自然语言完成。
+
+## 平台兼容性
+
+WDA-MCP 需要支持**读+写**的 MCP（能看屏幕也能操控）。只读 MCP = 能看不能点。
+
+### Anthropic（Claude）
+
+| 产品 | 自定义 MCP？ | 能操控？ | 最低计划 | 费用 |
+|------|:----------:|:------:|---------|------|
+| **claude.ai**（网页） | ✅ | ✅ | 免费（1 个连接器） | $0 |
+| **Claude Desktop** | ✅ | ✅ | 免费 | $0 |
+| **Claude Code**（命令行） | ✅ | ✅ | Pro 或 API | ~$20/月 |
+
+最佳免费选择。免费版 claude.ai 就能加 1 个自定义 MCP 连接器，完整操控。
+
+### OpenAI（ChatGPT）
+
+| 产品 | 自定义 MCP？ | 能操控？ | 最低计划 | 费用 |
+|------|:----------:|:------:|---------|------|
+| **ChatGPT**（网页/APP） | ✅ | ⚠️ Plus/Pro 只能看 | Business | $25/人/月 |
+| **ChatGPT** 免费/Go | ❌ | — | — | — |
+| **Codex CLI** | ✅ | ✅ | API | 按量付费 |
+
+⚠️ **ChatGPT Plus（$20/月）只能看不能操控！** 点击、输入、滑动等操作在 Plus/Pro 的 Developer Mode 里被限制为只读。完整操控需要 Business（$25/人/月）或 Enterprise。
+
+### Google（Gemini）
+
+| 产品 | 自定义 MCP？ | 能操控？ | 最低计划 | 费用 |
+|------|:----------:|:------:|---------|------|
+| **Gemini CLI** | ✅ | ✅ | 免费 Google 账号 | $0 |
+| **Gemini 网页版** | ❌ | — | — | 不支持 |
+| **Gemini Enterprise** | ✅ | ✅ | Cloud 付费 | $$$ |
+
+Gemini CLI 免费且功能完整。网页版（免费或 Advanced $20/月）不支持自定义 MCP。
+
+### 其他
+
+| 产品 | 自定义 MCP？ | 能操控？ | 最低计划 | 费用 |
+|------|:----------:|:------:|---------|------|
+| **Mistral Le Chat** | ✅ | ✅ | 免费 | $0 |
+| **Cursor** | ✅ | ✅ | Pro | $20/月 |
+| **Windsurf** | ✅ | ✅ | 免费 | $0 |
+| **Cline**（VS Code） | ✅ | ✅ | 免费（需 LLM API） | $0 + API |
+| **VS Code + Copilot** | ✅ | ✅ | Copilot 订阅 | $10/月 |
+
+### 按预算推荐
+
+| 预算 | 推荐 |
+|------|------|
+| **免费** | claude.ai（1个连接器）、Gemini CLI、Mistral Le Chat |
+| **$20/月** | Claude Pro（无限连接器）、Cursor Pro |
+| **全部功能** | Claude Max、Claude Code |
 
 ## 工具列表
 
