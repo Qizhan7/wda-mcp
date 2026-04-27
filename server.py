@@ -94,8 +94,64 @@ def wda_status() -> str:
 
 
 @mcp.tool()
+def wda_info() -> str:
+    """Get comprehensive device info in one call: device, battery, screen, active app, and visible text."""
+    import xml.etree.ElementTree as ET
+    lines = []
+    sid = _wda_get_session()
+
+    # Device info
+    r = _wda_request("GET", "/status")
+    if "error" not in r:
+        v = r.get("value", {})
+        lines.append(f"Device: {v.get('os', {}).get('name', '?')} {v.get('os', {}).get('version', '?')}")
+        lines.append(f"IP: {v.get('ios', {}).get('ip', 'unknown')}")
+
+    # Battery
+    r = _wda_request("GET", f"/session/{sid}/wda/batteryInfo")
+    if "error" not in r:
+        batt = r.get("value", {})
+        level = int(batt.get("level", 0) * 100)
+        state = {0: "unknown", 1: "unplugged", 2: "charging", 3: "full"}.get(batt.get("state", 0), "?")
+        lines.append(f"Battery: {level}% ({state})")
+
+    # Screen size
+    r = _wda_request("GET", f"/session/{sid}/window/size")
+    if "error" not in r:
+        sz = r.get("value", {})
+        lines.append(f"Screen: {sz.get('width', '?')}x{sz.get('height', '?')} points")
+
+    # Active app
+    r = _wda_request("GET", f"/session/{sid}/wda/activeAppInfo")
+    if "error" not in r:
+        app = r.get("value", {})
+        lines.append(f"Active app: {app.get('name', '?')} ({app.get('bundleId', '?')})")
+        lines.append(f"PID: {app.get('pid', '?')}")
+
+    # Visible text (from wda_check logic)
+    r = _wda_request("GET", f"/session/{sid}/source")
+    if "error" not in r:
+        try:
+            root = ET.fromstring(r.get("value", "<x/>"))
+            texts = []
+            for elem in root.iter():
+                label = elem.attrib.get("label", "").strip()
+                if label and label not in texts and len(label) < 100:
+                    texts.append(label)
+            lines.append(f"\nVisible text ({len(texts)} items):")
+            for t in texts[:20]:
+                lines.append(f"  - {t}")
+            if len(texts) > 20:
+                lines.append(f"  ... and {len(texts) - 20} more")
+        except Exception:
+            pass
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
 def wda_screenshot() -> str:
-    """Take a screenshot of the iPhone screen. Returns the saved file path."""
+    """Take a screenshot (heavy, costs thousands of tokens). Use wda_check first for text-based viewing. Only use screenshot when text is insufficient — e.g. checking images, layout, or when wda_check output is unclear."""
     sid = _wda_get_session()
     r = _wda_request("GET", f"/session/{sid}/screenshot")
     if "error" in r:
@@ -325,7 +381,7 @@ def wda_tap_text(text: str) -> str:
 
 @mcp.tool()
 def wda_check() -> str:
-    """Quick text-based screen check (no screenshot, saves tokens). Returns current app and visible text."""
+    """Primary way to see the screen — returns current app and all visible text. Use this FIRST before wda_screenshot. Only fall back to screenshot if text is insufficient."""
     sid = _wda_get_session()
     r = _wda_request("GET", f"/session/{sid}/source")
     if "error" in r:
