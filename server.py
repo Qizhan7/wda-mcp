@@ -226,10 +226,10 @@ def wda_home() -> str:
 
 @mcp.tool()
 def wda_back() -> str:
-    """Go back to previous page. Swipes from left edge to right (iOS back gesture)."""
+    """Go back to previous page. Uses left edge swipe (iOS back gesture). Also tries tap '返回' button as fallback."""
     sid = _wda_get_session()
     r = _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
-        "fromX": 5, "fromY": 400, "toX": 200, "toY": 400, "duration": 0.15
+        "fromX": 0, "fromY": 400, "toX": 250, "toY": 400, "duration": 0.2
     })
     if "error" in r:
         return f"Back failed: {r.get('error', 'unknown')}"
@@ -360,12 +360,12 @@ def wda_launch(name: str) -> str:
     _wda_request("POST", f"/session/{sid}/wda/keys", {"value": list(name)})
     time.sleep(1.5)
 
-    # Tap the top search result — Spotlight always puts the best match at (197, 152)
+    # Tap the top search result icon — Spotlight puts the best match icon at (64, 154)
     _wda_request("POST", f"/session/{sid}/actions", {
         "actions": [{"type": "pointer", "id": "f1",
                      "parameters": {"pointerType": "touch"},
                      "actions": [
-                         {"type": "pointerMove", "duration": 0, "x": 197, "y": 152},
+                         {"type": "pointerMove", "duration": 0, "x": 64, "y": 154},
                          {"type": "pointerDown", "button": 0},
                          {"type": "pause", "duration": 100},
                          {"type": "pointerUp", "button": 0}]}]
