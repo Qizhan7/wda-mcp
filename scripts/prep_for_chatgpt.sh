@@ -55,7 +55,7 @@ section() { echo; hr; echo "▶ $1"; hr; }
 section "Step 1 / 6  Inventory"
 
 PORT_OWNER=""
-if PORT_PID=$(lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t 2>/dev/null); then
+if PORT_PID=$(lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t 2>/dev/null | head -1); then
     if [ -n "$PORT_PID" ]; then
         PORT_OWNER=$(ps -p "$PORT_PID" -o command= 2>/dev/null || echo "unknown")
         echo "Port $PORT: in use (PID $PORT_PID)"
@@ -133,12 +133,18 @@ fi
 # ─── Step 4: Local self-check ───────────────────────────────────
 section "Step 4 / 6  Local self-check (loopback bypass)"
 
-LOCAL_CODE=$(curl -sS -o /tmp/prep_local.txt -w "%{http_code}" --max-time 5 \
-    -X POST "http://127.0.0.1:$PORT/mcp" \
-    -H "Accept: application/json, text/event-stream" \
-    -H "Content-Type: application/json" \
-    -d '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"prep","version":"0"}}}' \
-    2>/dev/null || echo "000")
+LOCAL_CODE="000"
+for i in 1 2 3 4 5; do
+    LOCAL_CODE=$(curl -sS -o /tmp/prep_local.txt -w "%{http_code}" --max-time 5 \
+        -X POST "http://127.0.0.1:$PORT/mcp" \
+        -H "Accept: application/json, text/event-stream" \
+        -H "Content-Type: application/json" \
+        -d '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"prep","version":"0"}}}' \
+        2>/dev/null || echo "000")
+    [ "$LOCAL_CODE" = "200" ] && break
+    echo "  waiting for server to be ready… (attempt $i/5)"
+    sleep 2
+done
 
 if [ "$LOCAL_CODE" = "200" ]; then
     echo "127.0.0.1:$PORT/mcp → HTTP 200 ✓ (server alive, MCP handshake OK)"
@@ -161,7 +167,8 @@ if [ -n "$URL" ]; then
     NOAUTH=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 8 -X POST "$URL" \
         -H "Accept: application/json, text/event-stream" \
         -H "Content-Type: application/json" \
-        -d '{"jsonrpc":"2.0","method":"tools/list","id":1}' 2>/dev/null || echo "000")
+        -d '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"prep-noauth","version":"0"}}}' \
+        2>/dev/null || echo "000")
     AUTH=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 8 -X POST "$URL" \
         -H "Accept: application/json, text/event-stream" \
         -H "Content-Type: application/json" \
