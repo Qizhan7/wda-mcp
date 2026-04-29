@@ -644,14 +644,16 @@ def wda_wechat_read(contact: str, count: int = 10) -> str:
     sid = _wda_get_session()
     layout = _load_app_layout("com.tencent.xin")
 
-    _ensure_wechat(sid, layout)
-    ok, nav_msg = _navigate_to_chat(sid, contact, layout)
-    if not ok:
-        return f"Failed to open chat with '{contact}': {nav_msg}"
+    already_here = (_current_chat == contact)
 
-    # Dismiss keyboard by tapping message area
-    _tap_cached(sid, 196, 400)
-    time.sleep(0.3)
+    if not already_here:
+        _ensure_wechat(sid, layout)
+        ok, nav_msg = _navigate_to_chat(sid, contact, layout)
+        if not ok:
+            return f"Failed to open chat with '{contact}': {nav_msg}"
+    else:
+        # Already in this chat — dismiss keyboard if open (from prior send)
+        _tap_cached(sid, 196, 400)
 
     import xml.etree.ElementTree as ET
     r = _wda_request("GET", f"/session/{sid}/source")
@@ -672,6 +674,7 @@ def wda_wechat_read(contact: str, count: int = 10) -> str:
                     and t not in noise and t not in texts
                     and "滚动条" not in t and "页栏" not in t):
                 texts.append(t)
+    _current_chat = contact
     if not texts:
         return f"Opened {contact}'s chat but no messages visible."
 
