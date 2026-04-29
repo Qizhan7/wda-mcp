@@ -401,7 +401,7 @@ Cellular remote start can still fail because of carrier networking, Tailscale re
 
 **Typical workflow:**
 1. At home: iPhone on WiFi → `wda_start()` launches WDA via Tailscale tunnel
-2. Leave home: iPhone disconnects from WiFi (but toggle stays on) → WDA keeps running
+2. Before leaving: "Forget This Network" to disconnect WiFi cleanly → iPhone switches to 5G instantly → WDA stays alive
 3. On the go: control iPhone via 5G + Tailscale from anywhere; if `49152` remains reachable, remote restart can work too
 
 **If stuck, check:**
@@ -424,7 +424,7 @@ Cellular remote start can still fail because of carrier networking, Tailscale re
 >
 > This tested flow is the key to keeping WDA alive on 5G. Do not skip steps.
 >
-> **For daily use it's simpler** — just walk out of WiFi range naturally. As long as mobile data is on and you don't manually turn off the WiFi button, WDA stays alive.
+> **For daily use, still do the "Forget" step.** Walking out of WiFi range naturally does NOT reliably keep WDA alive — the iPhone holds onto weak WiFi signal too long, causing the TCP tunnel to time out before switching to 5G. "Forget This Network" is instant and lets iOS cut over to 5G cleanly.
 >
 > ---
 >
