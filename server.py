@@ -43,7 +43,7 @@ APP_LAYOUTS_DIR = os.path.join(os.path.dirname(__file__), "app_layouts")
 _TOOL_GROUPS = {
     "core":   {"wda_check", "wda_screenshot", "wda_tap", "wda_tap_text", "wda_type",
                "wda_swipe", "wda_scroll", "wda_home", "wda_back", "wda_launch",
-               "wda_source", "wda_find"},
+               "wda_open_url", "wda_source", "wda_find"},
     "wechat": {"wda_wechat_read", "wda_send_wechat"},
     "learn":  {"wda_learn_app"},
     "util":   {"wda_long_press", "wda_notifications", "wda_clipboard"},
@@ -440,6 +440,15 @@ def wda_launch(name: str) -> str:
     time.sleep(0.5)
     return f"Launched '{name}' via Spotlight"
 
+
+@_tool(annotations=_RW)
+def wda_open_url(url: str) -> str:
+    """Open a URL in Safari."""
+    sid = _wda_get_session()
+    r = _wda_request("POST", f"/session/{sid}/url", {"url": url})
+    if "error" in r:
+        return f"Failed: {r.get('error', 'unknown')}"
+    return f"Opened {url}"
 
 
 

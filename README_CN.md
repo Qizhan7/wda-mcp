@@ -49,7 +49,7 @@ WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、
 | **Mistral Le Chat** | ✅ | ✅ | 可作为免费聊天入口测试。 |
 | **Cursor / Windsurf / Cline** | ✅ | ✅ | 适合开发环境内使用。 |
 
-## 工具（共 21 个，按组加载）
+## 工具（共 22 个，按组加载）
 
 工具按使用场景分组。设置 `WDA_TOOLS` 环境变量按需加载——减少 AI 上下文 token 消耗。
 
@@ -57,12 +57,12 @@ WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、
 |------|------|------|
 | **`setup`** | 首次安装 / 运维 | `wda_status` `wda_start` `wda_renew` |
 | **`learn`** | 扫描 app UI，缓存坐标复用 | `wda_learn_app` |
-| **`core`** | 日常手机控制（12 个） | 见下方 |
+| **`core`** | 日常手机控制（13 个） | 见下方 |
 | **`wechat`** | 一键读/发微信消息 | `wda_wechat_read` `wda_send_wechat` |
 | **`util`** | 通知、剪贴板、长按 | `wda_long_press` `wda_notifications` `wda_clipboard` |
 
 <details>
-<summary><b>Core 核心工具（12 个）</b>——查看、点击、输入、导航</summary>
+<summary><b>Core 核心工具（13 个）</b>——查看、点击、输入、导航</summary>
 
 | 工具 | 功能 |
 |------|------|
@@ -78,6 +78,7 @@ WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、
 | `wda_home` | 回主屏幕 |
 | `wda_back` | 返回上一页（iOS 边缘滑动） |
 | `wda_launch` | Spotlight 搜索打开任意 app |
+| `wda_open_url` | 用 Safari 打开 URL |
 
 </details>
 
@@ -89,10 +90,10 @@ WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、
 # 只加载基础控制（12 个工具）
 WDA_TOOLS=core
 
-# 基础控制 + 微信（14 个工具）
+# 基础控制 + 微信（15 个工具）
 WDA_TOOLS=core,wechat
 
-# 全部（21 个工具，默认）
+# 全部（22 个工具，默认）
 # WDA_TOOLS=
 ```
 

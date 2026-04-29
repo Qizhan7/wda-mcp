@@ -49,7 +49,7 @@ Custom MCP requires [Developer Mode](https://help.openai.com/en/articles/1258446
 | **Mistral Le Chat** | ✅ | ✅ | Useful free chat entry point to test. |
 | **Cursor / Windsurf / Cline** | ✅ | ✅ | Good inside development environments. |
 
-## Tools (21 total, loadable by group)
+## Tools (22 total, loadable by group)
 
 Tools are organized by usage scenario. Set `WDA_TOOLS` env var to load only the groups you need — saves AI context tokens.
 
@@ -57,12 +57,12 @@ Tools are organized by usage scenario. Set `WDA_TOOLS` env var to load only the 
 |-------|------|-------|
 | **`setup`** | First time / maintenance | `wda_status` `wda_start` `wda_renew` |
 | **`learn`** | Scan an app's UI once, reuse cached coordinates | `wda_learn_app` |
-| **`core`** | Everyday phone control (12 tools) | See below |
+| **`core`** | Everyday phone control (13 tools) | See below |
 | **`wechat`** | Read/send WeChat messages in one call | `wda_wechat_read` `wda_send_wechat` |
 | **`util`** | Notifications, clipboard, long press | `wda_long_press` `wda_notifications` `wda_clipboard` |
 
 <details>
-<summary><b>Core tools (12)</b> — view, tap, type, navigate</summary>
+<summary><b>Core tools (13)</b> — view, tap, type, navigate</summary>
 
 | Tool | What it does |
 |------|-------------|
@@ -78,6 +78,7 @@ Tools are organized by usage scenario. Set `WDA_TOOLS` env var to load only the 
 | `wda_home` | Go to home screen |
 | `wda_back` | Go back (iOS edge swipe) |
 | `wda_launch` | Open any app via Spotlight |
+| `wda_open_url` | Open a URL in Safari |
 
 </details>
 
@@ -89,10 +90,10 @@ By default all groups are loaded. To reduce token overhead, set `WDA_TOOLS` in y
 # Only basic phone control (12 tools)
 WDA_TOOLS=core
 
-# Phone control + WeChat (14 tools)
+# Phone control + WeChat (15 tools)
 WDA_TOOLS=core,wechat
 
-# Everything (21 tools, default)
+# Everything (22 tools, default)
 # WDA_TOOLS=
 ```
 
