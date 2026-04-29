@@ -597,7 +597,7 @@ def _ensure_wechat(sid: str, layout: dict | None):
     if bundle == "com.tencent.xin":
         return True
     wda_launch("微信")
-    time.sleep(1.5)
+    time.sleep(0.5)
     return True
 
 
@@ -617,7 +617,7 @@ def _navigate_to_chat(sid: str, contact: str, layout: dict | None) -> tuple[bool
     ok, msg = _tap_text_internal(sid, contact)
     if not ok:
         return False, msg
-    time.sleep(0.8)
+    time.sleep(0.3)
     _current_chat = contact
     return True, msg
 
@@ -695,17 +695,15 @@ def wda_send_wechat(contact: str, text: str, verify: bool = True) -> str:
 
     input_tap, send_tap = _get_layout_coords(layout)
 
-    # Tap input → type → tap send
+    # Tap input → type → tap send (no sleep — WDA requests are synchronous)
     _tap_cached(sid, input_tap[0], input_tap[1])
-    time.sleep(0.3)
     _wda_request("POST", f"/session/{sid}/wda/keys", {"value": list(text)})
-    time.sleep(0.3)
     _tap_cached(sid, send_tap[0], send_tap[1])
 
     if not verify:
         return f"Sent to {contact}: {text}"
 
-    time.sleep(0.5)
+    time.sleep(0.3)
     # Verify: one source call — check message sent + read recent messages
     import xml.etree.ElementTree as ET
     r = _wda_request("GET", f"/session/{sid}/source")
@@ -915,7 +913,7 @@ def wda_learn_app(name: str = "") -> str:
 
     sid = _wda_get_session()
     wda_launch(name)
-    time.sleep(1.5)
+    time.sleep(0.5)
 
     r = _wda_request("GET", f"/session/{sid}/wda/activeAppInfo")
     if "error" in r:
@@ -937,24 +935,23 @@ def wda_learn_app(name: str = "") -> str:
     if layout["tab_bar"]:
         first_tab = list(layout["tab_bar"].values())[0]
         _tap_cached(sid, first_tab["tap"][0], first_tab["tap"][1])
-        time.sleep(0.5)
+        time.sleep(0.3)
         root, err = _get_source_parsed(sid)
         if root:
             layout = _scan_ui_structure(root)
     elif any(l in layout.get("nav_bar", {}).get("items", {}) for l in back_labels):
-        # No tab bar but has back button — go back once, then check for tabs
         for label in back_labels:
             info = layout.get("nav_bar", {}).get("items", {}).get(label)
             if info:
                 _tap_cached(sid, info["tap"][0], info["tap"][1])
-                time.sleep(1)
+                time.sleep(0.5)
                 root, err = _get_source_parsed(sid)
                 if root:
                     layout = _scan_ui_structure(root)
                     if layout["tab_bar"]:
                         first_tab = list(layout["tab_bar"].values())[0]
                         _tap_cached(sid, first_tab["tap"][0], first_tab["tap"][1])
-                        time.sleep(0.5)
+                        time.sleep(0.3)
                         root, err = _get_source_parsed(sid)
                         if root:
                             layout = _scan_ui_structure(root)
@@ -977,16 +974,14 @@ def wda_learn_app(name: str = "") -> str:
 
     if first_cell:
         _tap_cached(sid, first_cell[0], first_cell[1])
-        time.sleep(1)
+        time.sleep(0.5)
         detail_root, _ = _get_source_parsed(sid)
-        if detail_root:
+        if detail_root is not None:
             dl = _scan_ui_structure(detail_root)
             has_back = any(l in back_labels for l in dl.get("nav_bar", {}).get("items", {}))
             if has_back:
                 detail_layout = dl
-        # Go back to main page
         wda_back()
-        time.sleep(0.5)
 
     # --- Phase 3: Save ---
     layout_data = {
