@@ -49,41 +49,54 @@ WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、
 | **Mistral Le Chat** | ✅ | ✅ | 可作为免费聊天入口测试。 |
 | **Cursor / Windsurf / Cline** | ✅ | ✅ | 适合开发环境内使用。 |
 
-## 工具列表
+## 工具（共 21 个，按组加载）
+
+工具按使用场景分组。设置 `WDA_TOOLS` 环境变量按需加载——减少 AI 上下文 token 消耗。
+
+| 分组 | 场景 | 工具 |
+|------|------|------|
+| **`setup`** | 首次安装 / 运维 | `wda_status` `wda_start` `wda_renew` |
+| **`learn`** | 扫描 app UI，缓存坐标复用 | `wda_learn_app` |
+| **`core`** | 日常手机控制（12 个） | 见下方 |
+| **`wechat`** | 一键读/发微信消息 | `wda_wechat_read` `wda_send_wechat` |
+| **`util`** | 通知、剪贴板、长按 | `wda_long_press` `wda_notifications` `wda_clipboard` |
+
+<details>
+<summary><b>Core 核心工具（12 个）</b>——查看、点击、输入、导航</summary>
 
 | 工具 | 功能 |
 |------|------|
-| **查看** | |
-| `wda_check` | 首选查看方式——返回当前 app + 屏幕所有文字（省 token） |
-| `wda_info` | 一次返回：设备信息、电池、屏幕尺寸、当前 app + 屏幕文字 |
-| `wda_screenshot` | 截图保存 PNG（兜底——先用 `wda_check`，看不清再截图） |
-| `wda_source` | 完整 UI 元素树 XML（标签、类型、坐标） |
-| `wda_find` | 按文字搜索元素，返回匹配的标签 + 点击坐标 |
-| **操作** | |
-| `wda_tap` | 点击坐标（x, y，单位 point） |
-| `wda_tap_text` | 按文字找到元素并点击（页面加载中自动重试 3 次） |
-| `wda_long_press` | 长按（弹出菜单、语音消息、删除等） |
+| `wda_check` | 看屏幕：当前 app + 所有文字。`detail=True` 额外返回设备/电池信息 |
+| `wda_screenshot` | 截图保存 PNG（先用 `wda_check` 省 token） |
+| `wda_source` | 完整 UI 元素树 XML |
+| `wda_find` | 按文字搜索元素 → 返回坐标 |
+| `wda_tap` | 点击坐标 (x, y) |
+| `wda_tap_text` | 按文字找元素并点击（自动重试 3 次） |
 | `wda_type` | 输入文字 |
 | `wda_swipe` | 两点间滑动 |
-| **导航** | |
+| `wda_scroll` | 滚动：`down` / `up` / `left` / `right` |
 | `wda_home` | 回主屏幕 |
-| `wda_back` | 返回上一页（iOS 左边缘右滑手势） |
-| `wda_scroll` | 滚动——方向：`down`、`up`、`left`、`right` |
+| `wda_back` | 返回上一页（iOS 边缘滑动） |
 | `wda_launch` | Spotlight 搜索打开任意 app |
-| **App 布局学习** | |
-| `wda_learn_app` | 自动扫描 app 的 UI 结构（tab 栏、导航栏、输入框、按钮），缓存为 JSON |
-| `wda_app_layout` | 查看已缓存的 app 布局——跳过重复的 `wda_find` |
-| **微信** | |
-| `wda_wechat_read` | 打开对话并读取最近消息（包括屏幕外已预渲染的内容） |
-| `wda_send_wechat` | 一键发送：导航 → 输入 → 发送 → 验证，失败自动截图 |
-| **工具** | |
-| `wda_notifications` | 下拉通知栏 + 读取所有通知文字 |
-| `wda_clipboard` | 读取剪贴板内容 |
-| `wda_status` | 检查 WDA 是否运行 |
-| `wda_start` | 启动/重启 WDA（自动 Tailscale 或本地 xcodebuild） |
-| `wda_renew` | 续签 7 天证书 |
 
-**设备兼容性：** 所有坐标在首次使用时自动校准。WDA-MCP 会自动检测屏幕尺寸和 Spotlight 布局——支持任何 iPhone 型号和 iOS 版本。
+</details>
+
+### 按需加载
+
+默认加载全部工具。在 `.env` 里设置 `WDA_TOOLS` 减少 token 消耗：
+
+```bash
+# 只加载基础控制（12 个工具）
+WDA_TOOLS=core
+
+# 基础控制 + 微信（14 个工具）
+WDA_TOOLS=core,wechat
+
+# 全部（21 个工具，默认）
+# WDA_TOOLS=
+```
+
+**设备兼容性：** 所有坐标首次使用时自动校准——支持任何 iPhone 型号和 iOS 版本。
 
 ### App 布局学习
 

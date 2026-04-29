@@ -49,41 +49,54 @@ Custom MCP requires [Developer Mode](https://help.openai.com/en/articles/1258446
 | **Mistral Le Chat** | ✅ | ✅ | Useful free chat entry point to test. |
 | **Cursor / Windsurf / Cline** | ✅ | ✅ | Good inside development environments. |
 
-## Tools
+## Tools (21 total, loadable by group)
 
-| Tool | Description |
+Tools are organized by usage scenario. Set `WDA_TOOLS` env var to load only the groups you need — saves AI context tokens.
+
+| Group | When | Tools |
+|-------|------|-------|
+| **`setup`** | First time / maintenance | `wda_status` `wda_start` `wda_renew` |
+| **`learn`** | Scan an app's UI once, reuse cached coordinates | `wda_learn_app` |
+| **`core`** | Everyday phone control (12 tools) | See below |
+| **`wechat`** | Read/send WeChat messages in one call | `wda_wechat_read` `wda_send_wechat` |
+| **`util`** | Notifications, clipboard, long press | `wda_long_press` `wda_notifications` `wda_clipboard` |
+
+<details>
+<summary><b>Core tools (12)</b> — view, tap, type, navigate</summary>
+
+| Tool | What it does |
 |------|-------------|
-| **Viewing** | |
-| `wda_check` | Primary screen viewer — returns current app + all visible text (saves tokens) |
-| `wda_info` | Comprehensive one-call: device, battery, screen size, active app + visible text |
-| `wda_screenshot` | Capture screen as PNG (fallback — use `wda_check` first to save tokens) |
-| `wda_source` | Full UI element tree as XML (labels, types, coordinates) |
-| `wda_find` | Search elements by text, returns matching labels + tap coordinates |
-| **Actions** | |
-| `wda_tap` | Tap a point on screen (x, y in points) |
-| `wda_tap_text` | Find element by text and tap it in one call (auto-retries 3x for loading pages) |
-| `wda_long_press` | Long press at a point (context menus, voice messages, etc.) |
-| `wda_type` | Type text into the focused input field |
-| `wda_swipe` | Swipe between two points with configurable duration |
-| **Navigation** | |
+| `wda_check` | See the screen: app + all visible text. Add `detail=True` for device/battery info |
+| `wda_screenshot` | Capture screen as PNG (use `wda_check` first to save tokens) |
+| `wda_source` | Full UI element tree as XML |
+| `wda_find` | Search elements by text → tap coordinates |
+| `wda_tap` | Tap a point (x, y) |
+| `wda_tap_text` | Find element by text and tap it (auto-retries 3x) |
+| `wda_type` | Type text into focused input |
+| `wda_swipe` | Swipe between two points |
+| `wda_scroll` | Scroll: `down` / `up` / `left` / `right` |
 | `wda_home` | Go to home screen |
-| `wda_back` | Go back to previous page (iOS left-edge swipe gesture) |
-| `wda_scroll` | Scroll screen — direction: `down`, `up`, `left`, `right` |
-| `wda_launch` | Open any app via Spotlight search (no cache needed) |
-| **App Layout Learning** | |
-| `wda_learn_app` | Auto-scan any app's UI structure (tab bar, nav bar, inputs, buttons) and cache to JSON |
-| `wda_app_layout` | Look up cached app layouts — skip repeated `wda_find` for known UI elements |
-| **WeChat** | |
-| `wda_wechat_read` | Open a chat and read recent messages (reads off-screen pre-rendered content too) |
-| `wda_send_wechat` | One-shot send: navigate → type → send → verify, with screenshot fallback on failure |
-| **Utility** | |
-| `wda_notifications` | Pull down notification center + read all notifications as text |
-| `wda_clipboard` | Read clipboard content |
-| `wda_status` | Check if WDA is running and ready |
-| `wda_start` | Start/restart WDA (auto Tailscale tunnel or local xcodebuild) |
-| `wda_renew` | Rebuild WDA to renew 7-day signing certificate |
+| `wda_back` | Go back (iOS edge swipe) |
+| `wda_launch` | Open any app via Spotlight |
 
-**Device compatibility:** All coordinates auto-calibrate on first use. WDA-MCP detects your screen size and Spotlight layout automatically — works on any iPhone model and iOS version.
+</details>
+
+### Selective loading
+
+By default all groups are loaded. To reduce token overhead, set `WDA_TOOLS` in your `.env`:
+
+```bash
+# Only basic phone control (12 tools)
+WDA_TOOLS=core
+
+# Phone control + WeChat (14 tools)
+WDA_TOOLS=core,wechat
+
+# Everything (21 tools, default)
+# WDA_TOOLS=
+```
+
+**Device compatibility:** All coordinates auto-calibrate on first use — works on any iPhone model and iOS version.
 
 ### App Layout Learning
 
