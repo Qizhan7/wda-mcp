@@ -180,7 +180,7 @@ def _wda_request(method: str, path: str, body: dict | None = None) -> dict:
     req = urllib.request.Request(url, data=data, method=method)
     req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=30) as resp:
             return json.loads(resp.read())
     except urllib.error.URLError as e:
         return {"error": str(e)}
@@ -834,12 +834,17 @@ def _scan_ui_structure(root) -> dict:
                     result["tab_bar"][cl] = {"tap": _center(child)}
 
         elif etype in ("XCUIElementTypeButton", "XCUIElementTypeOther") and label:
-            y = int(elem.attrib.get("y", 0))
-            h = int(elem.attrib.get("height", 0))
-            w = int(elem.attrib.get("width", 0))
+            ey = int(elem.attrib.get("y", 0))
+            eh = int(elem.attrib.get("height", 0))
+            ew = int(elem.attrib.get("width", 0))
             screen_h = int(root.attrib.get("height", 852))
             screen_w = int(root.attrib.get("width", 393))
-            if y + h > screen_h - 100 and w < screen_w // 2 and len(label) < 10:
+            # Tab-like: very bottom of screen, small, short label, not scrollbar noise
+            is_bottom = ey > screen_h - 60
+            is_small = ew < screen_w // 2
+            is_short = 1 < len(label) < 8
+            is_noise = "滚动" in label
+            if is_bottom and is_small and is_short and not is_noise:
                 if label not in result["tab_bar"]:
                     result["tab_bar"][label] = {"tap": _center(elem)}
             elif etype == "XCUIElementTypeButton":
@@ -860,10 +865,41 @@ def _scan_ui_structure(root) -> dict:
     return result
 
 
+def _get_source_parsed(sid: str):
+    """Get source XML and parse it. Returns (root, error_str)."""
+    import xml.etree.ElementTree as ET
+    r = _wda_request("GET", f"/session/{sid}/source")
+    if "error" in r:
+        return None, f"Source failed: {r.get('error')}"
+    try:
+        return ET.fromstring(r.get("value", "<x/>")), None
+    except Exception as e:
+        return None, f"XML parse error: {e}"
+
+
+def _format_layout(layout: dict) -> list[str]:
+    """Format a layout dict into human-readable lines."""
+    lines = []
+    if layout.get("tab_bar"):
+        lines.append(f"  Tab bar ({len(layout['tab_bar'])} tabs):")
+        for label, info in layout["tab_bar"].items():
+            lines.append(f"    {label} → tap({info['tap'][0]}, {info['tap'][1]})")
+    if layout.get("nav_bar", {}).get("items"):
+        lines.append(f"  Nav bar:")
+        for label, info in layout["nav_bar"]["items"].items():
+            lines.append(f"    {label} → tap({info['tap'][0]}, {info['tap'][1]})")
+    if layout.get("search_fields"):
+        for sf in layout["search_fields"]:
+            lines.append(f"  Search: {sf['label']} → tap({sf['tap'][0]}, {sf['tap'][1]})")
+    if layout.get("inputs"):
+        for inp in layout["inputs"]:
+            lines.append(f"  Input: {inp['label']} → tap({inp['tap'][0]}, {inp['tap'][1]})")
+    return lines
+
+
 @_tool(annotations=_RO)
 def wda_learn_app(name: str = "") -> str:
     """Scan app UI and cache layout. Empty name lists cached layouts."""
-    import xml.etree.ElementTree as ET
 
     if not name:
         os.makedirs(APP_LAYOUTS_DIR, exist_ok=True)
@@ -878,75 +914,111 @@ def wda_learn_app(name: str = "") -> str:
         return "\n".join(lines)
 
     sid = _wda_get_session()
-
-    if name:
-        wda_launch(name)
-        time.sleep(2)
+    wda_launch(name)
+    time.sleep(1.5)
 
     r = _wda_request("GET", f"/session/{sid}/wda/activeAppInfo")
     if "error" in r:
         return f"Cannot get active app: {r.get('error')}"
     app_info = r.get("value", {})
-    bundle_id = app_info.get("bundleId", "unknown")
-    app_name = app_info.get("name", name or "unknown")
+    bundle_id = app_info.get("bundleId") or "unknown"
+    app_name = app_info.get("name") or name or "unknown"
 
-    r = _wda_request("GET", f"/session/{sid}/source")
-    if "error" in r:
-        return f"Source failed: {r.get('error')}"
-
-    try:
-        root = ET.fromstring(r.get("value", "<x/>"))
-    except Exception as e:
-        return f"XML parse error: {e}"
-
+    # --- Phase 1: Navigate to main page ---
+    back_labels = {"返回", "Back", "back", "关闭", "Close"}
+    root, err = _get_source_parsed(sid)
+    if not root:
+        return err
     screen_w = int(root.attrib.get("width", 393))
     screen_h = int(root.attrib.get("height", 852))
-
     layout = _scan_ui_structure(root)
+
+    # If tab bar found, tap first tab to go to main page (fastest path)
+    if layout["tab_bar"]:
+        first_tab = list(layout["tab_bar"].values())[0]
+        _tap_cached(sid, first_tab["tap"][0], first_tab["tap"][1])
+        time.sleep(0.5)
+        root, err = _get_source_parsed(sid)
+        if root:
+            layout = _scan_ui_structure(root)
+    elif any(l in layout.get("nav_bar", {}).get("items", {}) for l in back_labels):
+        # No tab bar but has back button — go back once, then check for tabs
+        for label in back_labels:
+            info = layout.get("nav_bar", {}).get("items", {}).get(label)
+            if info:
+                _tap_cached(sid, info["tap"][0], info["tap"][1])
+                time.sleep(1)
+                root, err = _get_source_parsed(sid)
+                if root:
+                    layout = _scan_ui_structure(root)
+                    if layout["tab_bar"]:
+                        first_tab = list(layout["tab_bar"].values())[0]
+                        _tap_cached(sid, first_tab["tap"][0], first_tab["tap"][1])
+                        time.sleep(0.5)
+                        root, err = _get_source_parsed(sid)
+                        if root:
+                            layout = _scan_ui_structure(root)
+                break
+
+    main_layout = layout
+
+    # --- Phase 2: Enter first list item for detail page ---
+    detail_layout = None
+    first_cell = None
+    for elem in root.iter():
+        if elem.attrib.get("type") == "XCUIElementTypeCell":
+            cy = int(elem.attrib.get("y", 0))
+            ch = int(elem.attrib.get("height", 0))
+            cw = int(elem.attrib.get("width", 0))
+            if 90 < cy < screen_h - 100 and ch > 30 and cw > screen_w // 2:
+                cx = int(elem.attrib.get("x", 0))
+                first_cell = (cx + cw // 2, cy + ch // 2)
+                break
+
+    if first_cell:
+        _tap_cached(sid, first_cell[0], first_cell[1])
+        time.sleep(1)
+        detail_root, _ = _get_source_parsed(sid)
+        if detail_root:
+            dl = _scan_ui_structure(detail_root)
+            has_back = any(l in back_labels for l in dl.get("nav_bar", {}).get("items", {}))
+            if has_back:
+                detail_layout = dl
+        # Go back to main page
+        wda_back()
+        time.sleep(0.5)
+
+    # --- Phase 3: Save ---
     layout_data = {
         "app_name": app_name,
         "bundle_id": bundle_id,
         "screen": {"width": screen_w, "height": screen_h},
         "scanned_at": time.strftime("%Y-%m-%d %H:%M"),
-        "main_screen": layout,
+        "main_screen": main_layout,
     }
+    if detail_layout:
+        layout_data["detail_screen"] = detail_layout
 
     os.makedirs(APP_LAYOUTS_DIR, exist_ok=True)
     path = os.path.join(APP_LAYOUTS_DIR, f"{bundle_id}.json")
-
     if os.path.exists(path):
         with open(path) as f:
             existing = json.load(f)
-        existing["scanned_at"] = layout_data["scanned_at"]
-        existing["main_screen"] = layout
+        existing.update(layout_data)
     else:
         existing = layout_data
-
     with open(path, "w") as f:
         json.dump(existing, f, indent=2, ensure_ascii=False)
 
-    lines = [f"Learned layout for {app_name} ({bundle_id})", f"Saved to: {path}", ""]
-    if layout["tab_bar"]:
-        lines.append(f"Tab bar ({len(layout['tab_bar'])} tabs):")
-        for label, info in layout["tab_bar"].items():
-            lines.append(f"  {label} → tap({info['tap'][0]}, {info['tap'][1]})")
-    if layout["nav_bar"].get("items"):
-        lines.append(f"Nav bar items:")
-        for label, info in layout["nav_bar"]["items"].items():
-            lines.append(f"  {label} → tap({info['tap'][0]}, {info['tap'][1]})")
-    if layout["search_fields"]:
-        lines.append(f"Search fields:")
-        for sf in layout["search_fields"]:
-            lines.append(f"  {sf['label']} → tap({sf['tap'][0]}, {sf['tap'][1]})")
-    if layout["inputs"]:
-        lines.append(f"Input fields:")
-        for inp in layout["inputs"]:
-            lines.append(f"  {inp['label']} → tap({inp['tap'][0]}, {inp['tap'][1]})")
-    nb = len(layout["buttons"])
-    if nb:
-        lines.append(f"Buttons: {nb} found (top 10):")
-        for b in layout["buttons"][:10]:
-            lines.append(f"  {b['label']} → tap({b['tap'][0]}, {b['tap'][1]})")
+    # --- Format output ---
+    lines = [f"Learned {app_name} ({bundle_id})", ""]
+    lines.append("Main page:")
+    lines.extend(_format_layout(main_layout))
+    if detail_layout:
+        lines.append("")
+        lines.append("Detail page:")
+        lines.extend(_format_layout(detail_layout))
+    lines.append(f"\nSaved to {path}")
     return "\n".join(lines)
 
 
