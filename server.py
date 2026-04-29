@@ -833,14 +833,16 @@ def _scan_ui_structure(root) -> dict:
                 if cl:
                     result["tab_bar"][cl] = {"tap": _center(child)}
 
-        elif etype == "XCUIElementTypeButton" and label:
+        elif etype in ("XCUIElementTypeButton", "XCUIElementTypeOther") and label:
             y = int(elem.attrib.get("y", 0))
             h = int(elem.attrib.get("height", 0))
+            w = int(elem.attrib.get("width", 0))
             screen_h = int(root.attrib.get("height", 852))
-            if y + h > screen_h - 100:
+            screen_w = int(root.attrib.get("width", 393))
+            if y + h > screen_h - 100 and w < screen_w // 2 and len(label) < 10:
                 if label not in result["tab_bar"]:
                     result["tab_bar"][label] = {"tap": _center(elem)}
-            else:
+            elif etype == "XCUIElementTypeButton":
                 result["buttons"].append({"label": label, "tap": _center(elem)})
 
         elif etype in ("XCUIElementTypeTextField", "XCUIElementTypeTextView", "XCUIElementTypeSecureTextField"):
