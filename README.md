@@ -70,6 +70,12 @@ Custom MCP requires [Developer Mode](https://help.openai.com/en/articles/1258446
 | `wda_back` | Go back to previous page (iOS left-edge swipe gesture) |
 | `wda_scroll` | Scroll screen — direction: `down`, `up`, `left`, `right` |
 | `wda_launch` | Open any app via Spotlight search (no cache needed) |
+| **App Layout Learning** | |
+| `wda_learn_app` | Auto-scan any app's UI structure (tab bar, nav bar, inputs, buttons) and cache to JSON |
+| `wda_app_layout` | Look up cached app layouts — skip repeated `wda_find` for known UI elements |
+| **WeChat** | |
+| `wda_wechat_read` | Open a chat and read recent messages (reads off-screen pre-rendered content too) |
+| `wda_send_wechat` | One-shot send: navigate → type → send → verify, with screenshot fallback on failure |
 | **Utility** | |
 | `wda_notifications` | Pull down notification center + read all notifications as text |
 | `wda_clipboard` | Read clipboard content |
@@ -78,6 +84,41 @@ Custom MCP requires [Developer Mode](https://help.openai.com/en/articles/1258446
 | `wda_renew` | Rebuild WDA to renew 7-day signing certificate |
 
 **Device compatibility:** All coordinates auto-calibrate on first use. WDA-MCP detects your screen size and Spotlight layout automatically — works on any iPhone model and iOS version.
+
+### App Layout Learning
+
+Instead of calling `wda_find` every time you interact with an app, scan its layout once and reuse cached coordinates:
+
+```
+> Learn WeChat's layout
+wda_learn_app("微信")
+→ Tab bar: 微信(49,807) 通讯录(147,807) 发现(245,807) 我(343,807)
+→ Nav: title(196,75) +(349,75)
+→ Search(196,125)
+→ Saved to app_layouts/com.tencent.xin.json
+```
+
+Cached positions (tab bars, input fields, send buttons) are reused by `wda_send_wechat` and `wda_wechat_read` — dynamic elements like chat list order are still found in real time.
+
+### WeChat Integration
+
+Read and send WeChat messages in a single MCP round-trip:
+
+```
+> Read recent messages
+wda_wechat_read("Alice", count=10)    # ~4-9s
+
+> Send a message
+wda_send_wechat("Alice", "Hello!")    # ~3-6s
+
+> Read then reply (navigation is skipped for the send)
+wda_wechat_read("Alice")             # reads messages, stays in chat
+wda_send_wechat("Alice", "Got it!")  # skips navigation, ~3s
+```
+
+- **`_current_chat` optimization**: after `wda_wechat_read`, a follow-up `wda_send_wechat` to the same contact skips navigation entirely
+- **`verify=False`**: skip post-send verification to save ~2-3s
+- **Screenshot fallback**: if verification fails, a debug screenshot is automatically saved
 
 ## Prerequisites
 

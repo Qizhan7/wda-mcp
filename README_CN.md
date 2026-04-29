@@ -70,6 +70,12 @@ WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、
 | `wda_back` | 返回上一页（iOS 左边缘右滑手势） |
 | `wda_scroll` | 滚动——方向：`down`、`up`、`left`、`right` |
 | `wda_launch` | Spotlight 搜索打开任意 app |
+| **App 布局学习** | |
+| `wda_learn_app` | 自动扫描 app 的 UI 结构（tab 栏、导航栏、输入框、按钮），缓存为 JSON |
+| `wda_app_layout` | 查看已缓存的 app 布局——跳过重复的 `wda_find` |
+| **微信** | |
+| `wda_wechat_read` | 打开对话并读取最近消息（包括屏幕外已预渲染的内容） |
+| `wda_send_wechat` | 一键发送：导航 → 输入 → 发送 → 验证，失败自动截图 |
 | **工具** | |
 | `wda_notifications` | 下拉通知栏 + 读取所有通知文字 |
 | `wda_clipboard` | 读取剪贴板内容 |
@@ -78,6 +84,41 @@ WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、
 | `wda_renew` | 续签 7 天证书 |
 
 **设备兼容性：** 所有坐标在首次使用时自动校准。WDA-MCP 会自动检测屏幕尺寸和 Spotlight 布局——支持任何 iPhone 型号和 iOS 版本。
+
+### App 布局学习
+
+不用每次操作都调 `wda_find`——扫描一次 app 布局，之后复用缓存坐标：
+
+```
+> 学习微信的布局
+wda_learn_app("微信")
+→ Tab 栏：微信(49,807) 通讯录(147,807) 发现(245,807) 我(343,807)
+→ 导航栏：标题(196,75) +(349,75)
+→ 搜索栏(196,125)
+→ 已保存到 app_layouts/com.tencent.xin.json
+```
+
+固定位置（tab 栏、输入框、发送按钮）缓存复用，动态位置（聊天列表顺序）仍然实时查找。
+
+### 微信集成
+
+一次 MCP 往返完成读取和发送：
+
+```
+> 读取最近消息
+wda_wechat_read("Alice", count=10)    # ~4-9 秒
+
+> 发送消息
+wda_send_wechat("Alice", "你好！")    # ~3-6 秒
+
+> 先读再回复（发送时自动跳过导航）
+wda_wechat_read("Alice")             # 读消息，停在对话页面
+wda_send_wechat("Alice", "收到！")   # 跳过导航，~3 秒
+```
+
+- **`_current_chat` 优化**：`wda_wechat_read` 后对同一个联系人 `wda_send_wechat`，自动跳过导航
+- **`verify=False`**：跳过发送后验证，省 ~2-3 秒
+- **截图兜底**：验证失败时自动保存截图供排查
 
 ## 前置条件
 
