@@ -119,19 +119,31 @@ Read and send WeChat messages in a single MCP round-trip:
 
 ```
 > Read recent messages
-wda_wechat_read("Alice", count=10)    # ~4-9s
+wda_wechat_read("Alice", count=10)    # ~6-8s first time, 3s repeat
 
 > Send a message
-wda_send_wechat("Alice", "Hello!")    # ~3-6s
+wda_send_wechat("Alice", "Hello!")    # ~5s with verify
 
-> Read then reply (navigation is skipped for the send)
-wda_wechat_read("Alice")             # reads messages, stays in chat
-wda_send_wechat("Alice", "Got it!")  # skips navigation, ~3s
+> Read then reply (navigation auto-skipped)
+wda_wechat_read("Alice")             # 3s — stays in chat
+wda_send_wechat("Alice", "Got it!")  # 5s — skips navigation
 ```
 
-- **`_current_chat` optimization**: after `wda_wechat_read`, a follow-up `wda_send_wechat` to the same contact skips navigation entirely
-- **`verify=False`**: skip post-send verification to save ~2-3s
-- **Screenshot fallback**: if verification fails, a debug screenshot is automatically saved
+**Performance** (iPhone → Tailscale → server, measured end-to-end):
+
+| Operation | Time | Notes |
+|-----------|------|-------|
+| Read (first time) | ~6-8s | Navigate + 1 source call |
+| Read (same contact) | **3s** | Already in chat, 1 source call |
+| Send (after read) | **5s** | Skip navigation + verify |
+| Send (verify=False) | **~2s** | Skip navigation + no verify |
+| Read → Send chain | **~8s** | Navigation auto-skipped for send |
+
+The bottleneck is WDA's `source` API (~1.7s per call on iPhone — UI tree traversal). All sleeps between tap/type/send have been removed; WDA requests are synchronous.
+
+- **`_current_chat` state**: after read/send, a follow-up to the same contact skips navigation entirely
+- **`verify=False`**: skip post-send source call to save ~3s
+- **Screenshot fallback**: if verification fails, a debug screenshot is saved automatically
 
 ## Prerequisites
 

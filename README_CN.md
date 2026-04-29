@@ -119,18 +119,30 @@ wda_learn_app("微信")
 
 ```
 > 读取最近消息
-wda_wechat_read("Alice", count=10)    # ~4-9 秒
+wda_wechat_read("Alice", count=10)    # 首次 ~6-8 秒，重复 3 秒
 
 > 发送消息
-wda_send_wechat("Alice", "你好！")    # ~3-6 秒
+wda_send_wechat("Alice", "你好！")    # 带验证 ~5 秒
 
-> 先读再回复（发送时自动跳过导航）
-wda_wechat_read("Alice")             # 读消息，停在对话页面
-wda_send_wechat("Alice", "收到！")   # 跳过导航，~3 秒
+> 先读再回复（导航自动跳过）
+wda_wechat_read("Alice")             # 3 秒，停在对话页面
+wda_send_wechat("Alice", "收到！")   # 5 秒，跳过导航
 ```
 
-- **`_current_chat` 优化**：`wda_wechat_read` 后对同一个联系人 `wda_send_wechat`，自动跳过导航
-- **`verify=False`**：跳过发送后验证，省 ~2-3 秒
+**性能**（iPhone → Tailscale → server，端到端实测）：
+
+| 操作 | 耗时 | 说明 |
+|------|------|------|
+| 读消息（首次） | ~6-8 秒 | 导航 + 1 次 source |
+| 读消息（同联系人） | **3 秒** | 已在对话，1 次 source |
+| 发送（read 之后） | **5 秒** | 跳过导航 + 验证 |
+| 发送（verify=False） | **~2 秒** | 跳过导航 + 不验证 |
+| 读 → 发 链路 | **~8 秒** | 发送自动跳过导航 |
+
+瓶颈是 WDA 的 `source` API（iPhone 端遍历 UI 树 ~1.7 秒/次）。tap/type/send 之间的 sleep 已全部移除——WDA 请求是同步的。
+
+- **`_current_chat` 状态**：read/send 后对同一联系人自动跳过导航
+- **`verify=False`**：跳过发送后的 source 验证，省 ~3 秒
 - **截图兜底**：验证失败时自动保存截图供排查
 
 ## 前置条件
