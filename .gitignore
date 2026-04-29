@@ -4,3 +4,4 @@ __pycache__/
 screenshots/
 app_map.json
 .screen_cache.json
+app_layouts/*.json

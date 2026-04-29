@@ -35,10 +35,12 @@ WDA_DEVICE_ID = os.environ.get("WDA_DEVICE_ID", "")
 WDA_BUNDLE_ID = os.environ.get("WDA_BUNDLE_ID", "com.example.WebDriverAgentRunner.xctrunner")
 WDA_PROJECT_DIR = os.path.expanduser(os.environ.get("WDA_PROJECT_DIR", "~/Desktop/WebDriverAgent"))
 SCREENSHOTS_DIR = os.path.expanduser(os.environ.get("WDA_SCREENSHOTS_DIR", "~/screenshots"))
+APP_LAYOUTS_DIR = os.path.join(os.path.dirname(__file__), "app_layouts")
 
 _wda_session_id: str | None = None
 _wda_base: str | None = None
 _screen: dict | None = None  # {"w": 393, "h": 852, "cx": 196, "cy": 426, ...}
+_current_chat: str | None = None
 
 SCREEN_CACHE = os.path.join(os.path.dirname(__file__), ".screen_cache.json")
 
@@ -295,6 +297,8 @@ def wda_type(text: str) -> str:
 @mcp.tool()
 def wda_home() -> str:
     """Go to home screen. WARNING: if already on home screen, this may open the app switcher instead. Use wda_check first to confirm current screen before navigating."""
+    global _current_chat
+    _current_chat = None
     sid = _wda_get_session()
     r = _wda_request("POST", f"/session/{sid}/wda/homescreen")
     if "error" in r:
@@ -310,6 +314,8 @@ def wda_home() -> str:
 @mcp.tool()
 def wda_back() -> str:
     """Go back to previous page. Uses left edge swipe (iOS back gesture). Also tries tap '返回' button as fallback."""
+    global _current_chat
+    _current_chat = None
     sid = _wda_get_session()
     r = _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
         "fromX": 0, "fromY": _get_screen()["cy"], "toX": int(_get_screen()["w"] * 0.64), "toY": _get_screen()["cy"], "duration": 0.2
@@ -425,6 +431,8 @@ def _is_home_screen() -> bool:
 @mcp.tool()
 def wda_launch(name: str) -> str:
     """Open any app by name using Spotlight search. Works for any installed app, no cache needed."""
+    global _current_chat
+    _current_chat = None
     sid = _wda_get_session()
     # Go home first
     _wda_request("POST", f"/session/{sid}/wda/homescreen")
@@ -549,6 +557,224 @@ def wda_tap_text(text: str) -> str:
     return f"No element matching '{text}' found on screen (tried 3 times)"
 
 
+def _tap_text_internal(sid: str, text: str, retries: int = 3) -> tuple[bool, str]:
+    """Internal tap_text without MCP overhead. Returns (success, message)."""
+    import xml.etree.ElementTree as ET
+    text_lower = text.lower()
+    for attempt in range(retries):
+        r = _wda_request("GET", f"/session/{sid}/source")
+        if "error" in r:
+            return False, f"Source failed: {r.get('error')}"
+        try:
+            root = ET.fromstring(r.get("value", "<x/>"))
+            for elem in root.iter():
+                label = elem.attrib.get("label", "")
+                name = elem.attrib.get("name", "")
+                value = elem.attrib.get("value", "")
+                if text_lower in label.lower() or text_lower in name.lower() or text_lower in value.lower():
+                    x = int(elem.attrib.get("x", 0))
+                    y = int(elem.attrib.get("y", 0))
+                    w = int(elem.attrib.get("width", 0))
+                    h = int(elem.attrib.get("height", 0))
+                    cx, cy = x + w // 2, y + h // 2
+                    _wda_request("POST", f"/session/{sid}/actions", {
+                        "actions": [{"type": "pointer", "id": "finger1",
+                                     "parameters": {"pointerType": "touch"},
+                                     "actions": [
+                                         {"type": "pointerMove", "duration": 0, "x": cx, "y": cy},
+                                         {"type": "pointerDown", "button": 0},
+                                         {"type": "pause", "duration": 100},
+                                         {"type": "pointerUp", "button": 0}]}]
+                    })
+                    return True, f"Tapped '{label or name}' at ({cx}, {cy})"
+        except Exception as e:
+            return False, f"Parse error: {e}"
+        if attempt < retries - 1:
+            time.sleep(0.5)
+    return False, f"'{text}' not found"
+
+
+def _load_app_layout(bundle_id: str) -> dict | None:
+    path = os.path.join(APP_LAYOUTS_DIR, f"{bundle_id}.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            return json.load(f)
+    return None
+
+
+def _tap_cached(sid: str, x: int, y: int):
+    _wda_request("POST", f"/session/{sid}/actions", {
+        "actions": [{"type": "pointer", "id": "f1",
+                     "parameters": {"pointerType": "touch"},
+                     "actions": [
+                         {"type": "pointerMove", "duration": 0, "x": x, "y": y},
+                         {"type": "pointerDown", "button": 0},
+                         {"type": "pause", "duration": 100},
+                         {"type": "pointerUp", "button": 0}]}]
+    })
+
+
+def _ensure_wechat(sid: str, layout: dict | None):
+    """Make sure we're in WeChat. Returns True if ok."""
+    r = _wda_request("GET", f"/session/{sid}/wda/activeAppInfo")
+    bundle = r.get("value", {}).get("bundleId", "") if "error" not in r else ""
+    if bundle == "com.tencent.xin":
+        return True
+    wda_launch("微信")
+    time.sleep(1.5)
+    return True
+
+
+def _navigate_to_chat(sid: str, contact: str, layout: dict | None) -> tuple[bool, str]:
+    """Navigate to a contact's chat. Uses _current_chat to skip if already there."""
+    global _current_chat
+    if _current_chat == contact:
+        return True, f"Already in {contact}'s chat"
+
+    # Tap chat tab to ensure we're on chat list
+    if layout:
+        tab = layout.get("screens", {}).get("chat_list", {}).get("tab_bar", {}).get("chats", {})
+        if tab.get("tap"):
+            _tap_cached(sid, tab["tap"][0], tab["tap"][1])
+            time.sleep(0.3)
+
+    ok, msg = _tap_text_internal(sid, contact)
+    if not ok:
+        return False, msg
+    time.sleep(0.8)
+    _current_chat = contact
+    return True, msg
+
+
+def _get_layout_coords(layout: dict | None) -> tuple[list, list]:
+    """Get input field and send button coords from cache, with fallbacks."""
+    input_tap = [178, 790]
+    send_tap = [344, 757]
+    if layout:
+        conv = layout.get("screens", {}).get("conversation", {}).get("input_bar", {})
+        tf = conv.get("text_field", {})
+        if tf.get("tap"):
+            input_tap = tf["tap"]
+        send = conv.get("more_or_send", {}).get("has_text", {})
+        if send.get("tap"):
+            send_tap = send["tap"]
+    return input_tap, send_tap
+
+
+@mcp.tool()
+def wda_wechat_read(contact: str, count: int = 10) -> str:
+    """Open a WeChat chat and read recent messages. Stays in the chat after reading.
+    Default 10 messages. Source returns ALL pre-rendered messages (including off-screen),
+    typically 30-60 messages — pass a larger count to see more. One MCP round-trip."""
+    global _current_chat
+    sid = _wda_get_session()
+    layout = _load_app_layout("com.tencent.xin")
+
+    _ensure_wechat(sid, layout)
+    ok, nav_msg = _navigate_to_chat(sid, contact, layout)
+    if not ok:
+        return f"Failed to open chat with '{contact}': {nav_msg}"
+
+    # Dismiss keyboard by tapping message area
+    _tap_cached(sid, 196, 400)
+    time.sleep(0.3)
+
+    import xml.etree.ElementTree as ET
+    r = _wda_request("GET", f"/session/{sid}/source")
+    if "error" in r:
+        return f"Opened {contact}'s chat but failed to read: {r.get('error')}"
+    try:
+        root = ET.fromstring(r.get("value", "<x/>"))
+    except Exception as e:
+        return f"XML parse error: {e}"
+
+    texts = []
+    noise = {"微信", "返回", "更多", "语音", "表情", "语音输入", "0%", "100%"}
+    for elem in root.iter():
+        label = elem.attrib.get("label", "").strip()
+        value = elem.attrib.get("value", "").strip()
+        for t in (label, value):
+            if (t and len(t) > 2 and len(t) < 300
+                    and t not in noise and t not in texts
+                    and "滚动条" not in t and "页栏" not in t):
+                texts.append(t)
+    if not texts:
+        return f"Opened {contact}'s chat but no messages visible."
+
+    lines = [f"Chat with {contact} ({min(count, len(texts))} messages):"]
+    for t in texts[-count:]:
+        lines.append(f"  {t[:150]}")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def wda_send_wechat(contact: str, text: str, verify: bool = True) -> str:
+    """Send a WeChat message in one shot. Navigates to chat, types, sends, and optionally verifies.
+    If already in the contact's chat (e.g. after wda_wechat_read), skips navigation.
+    Set verify=False to skip post-send verification (saves ~2-3s). Falls back to screenshot on failure."""
+    global _current_chat
+    sid = _wda_get_session()
+    layout = _load_app_layout("com.tencent.xin")
+
+    _ensure_wechat(sid, layout)
+    ok, nav_msg = _navigate_to_chat(sid, contact, layout)
+    if not ok:
+        return f"Failed to open chat with '{contact}': {nav_msg}"
+
+    input_tap, send_tap = _get_layout_coords(layout)
+
+    # Tap input → type → tap send
+    _tap_cached(sid, input_tap[0], input_tap[1])
+    time.sleep(0.3)
+    _wda_request("POST", f"/session/{sid}/wda/keys", {"value": list(text)})
+    time.sleep(0.3)
+    _tap_cached(sid, send_tap[0], send_tap[1])
+
+    if not verify:
+        return f"Sent to {contact}: {text}"
+
+    time.sleep(0.5)
+    # Verify: one source call — check message sent + read recent messages
+    import xml.etree.ElementTree as ET
+    r = _wda_request("GET", f"/session/{sid}/source")
+    src_text = r.get("value", "") if "error" not in r else ""
+    sent_found = text[:30] in src_text
+    msgs = []
+    if src_text:
+        try:
+            root = ET.fromstring(src_text)
+            for elem in root.iter():
+                if elem.attrib.get("type") == "XCUIElementTypeStaticText":
+                    label = elem.attrib.get("label", "").strip()
+                    if label and len(label) > 1 and len(label) < 200:
+                        msgs.append(label)
+        except Exception:
+            pass
+
+    if sent_found:
+        lines = [f"✓ Sent to {contact}: {text}"]
+        # Show recent visible text as context (filter out UI noise)
+        chat_msgs = [m for m in msgs if len(m) > 3 and m not in ("微信", "返回", "更多", "语音", "表情", "语音输入")]
+        if chat_msgs:
+            lines.append(f"\nRecent messages:")
+            for m in chat_msgs[-8:]:
+                lines.append(f"  {m[:120]}")
+        return "\n".join(lines)
+
+    # Verification failed — screenshot for debugging
+    screenshot_path = ""
+    sr = _wda_request("GET", f"/session/{sid}/screenshot")
+    if "error" not in sr:
+        img = base64.b64decode(sr.get("value", ""))
+        screenshot_path = os.path.join(SCREENSHOTS_DIR, f"wda_send_fail_{int(time.time())}.png")
+        os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
+        with open(screenshot_path, "wb") as f:
+            f.write(img)
+
+    _current_chat = None
+    return f"⚠ Send may have failed — message not found in chat. Screenshot: {screenshot_path}"
+
+
 @mcp.tool()
 def wda_check() -> str:
     """Primary way to see the screen — returns current app and all visible text. Use this FIRST before wda_screenshot. Only fall back to screenshot if text is insufficient."""
@@ -577,6 +803,171 @@ def wda_check() -> str:
         return summary
     except Exception as e:
         return f"Parse error: {e}"
+
+
+def _scan_ui_structure(root) -> dict:
+    """Parse a UI XML tree and extract structural elements: tab bars, nav bars, input fields, buttons."""
+    import xml.etree.ElementTree as ET
+
+    def _center(elem):
+        x = int(elem.attrib.get("x", 0))
+        y = int(elem.attrib.get("y", 0))
+        w = int(elem.attrib.get("width", 0))
+        h = int(elem.attrib.get("height", 0))
+        return [x + w // 2, y + h // 2]
+
+    def _bounds(elem):
+        return [int(elem.attrib.get("x", 0)), int(elem.attrib.get("y", 0)),
+                int(elem.attrib.get("width", 0)), int(elem.attrib.get("height", 0))]
+
+    result = {"nav_bar": {}, "tab_bar": {}, "buttons": [], "inputs": [], "search_fields": []}
+
+    for elem in root.iter():
+        etype = elem.attrib.get("type", "")
+        label = elem.attrib.get("label", "").strip()
+        name = elem.attrib.get("name", "").strip()
+
+        if etype == "XCUIElementTypeNavigationBar":
+            nav = {"bounds": _bounds(elem), "items": {}}
+            for child in elem:
+                cl = child.attrib.get("label", "").strip() or child.attrib.get("name", "").strip()
+                ct = child.attrib.get("type", "")
+                if cl:
+                    nav["items"][cl] = {"tap": _center(child), "type": ct}
+            result["nav_bar"] = nav
+
+        elif etype == "XCUIElementTypeTabBar":
+            for child in elem:
+                cl = child.attrib.get("label", "").strip()
+                if cl:
+                    result["tab_bar"][cl] = {"tap": _center(child)}
+
+        elif etype == "XCUIElementTypeButton" and label:
+            y = int(elem.attrib.get("y", 0))
+            h = int(elem.attrib.get("height", 0))
+            screen_h = int(root.attrib.get("height", 852))
+            if y + h > screen_h - 100:
+                if label not in result["tab_bar"]:
+                    result["tab_bar"][label] = {"tap": _center(elem)}
+            else:
+                result["buttons"].append({"label": label, "tap": _center(elem)})
+
+        elif etype in ("XCUIElementTypeTextField", "XCUIElementTypeTextView", "XCUIElementTypeSecureTextField"):
+            result["inputs"].append({
+                "label": label or name or etype.replace("XCUIElementType", ""),
+                "tap": _center(elem), "bounds": _bounds(elem)
+            })
+
+        elif etype == "XCUIElementTypeSearchField":
+            result["search_fields"].append({
+                "label": label or name or "search",
+                "tap": _center(elem), "bounds": _bounds(elem)
+            })
+
+    return result
+
+
+@mcp.tool()
+def wda_learn_app(name: str = "") -> str:
+    """Scan current app's UI and cache key layout positions (tab bar, nav bar, inputs, buttons).
+    If name is given, launches the app first. Returns the cached layout. Rerun to update."""
+    import xml.etree.ElementTree as ET
+
+    sid = _wda_get_session()
+
+    if name:
+        wda_launch(name)
+        time.sleep(2)
+
+    r = _wda_request("GET", f"/session/{sid}/wda/activeAppInfo")
+    if "error" in r:
+        return f"Cannot get active app: {r.get('error')}"
+    app_info = r.get("value", {})
+    bundle_id = app_info.get("bundleId", "unknown")
+    app_name = app_info.get("name", name or "unknown")
+
+    r = _wda_request("GET", f"/session/{sid}/source")
+    if "error" in r:
+        return f"Source failed: {r.get('error')}"
+
+    try:
+        root = ET.fromstring(r.get("value", "<x/>"))
+    except Exception as e:
+        return f"XML parse error: {e}"
+
+    screen_w = int(root.attrib.get("width", 393))
+    screen_h = int(root.attrib.get("height", 852))
+
+    layout = _scan_ui_structure(root)
+    layout_data = {
+        "app_name": app_name,
+        "bundle_id": bundle_id,
+        "screen": {"width": screen_w, "height": screen_h},
+        "scanned_at": time.strftime("%Y-%m-%d %H:%M"),
+        "main_screen": layout,
+    }
+
+    os.makedirs(APP_LAYOUTS_DIR, exist_ok=True)
+    path = os.path.join(APP_LAYOUTS_DIR, f"{bundle_id}.json")
+
+    if os.path.exists(path):
+        with open(path) as f:
+            existing = json.load(f)
+        existing["scanned_at"] = layout_data["scanned_at"]
+        existing["main_screen"] = layout
+    else:
+        existing = layout_data
+
+    with open(path, "w") as f:
+        json.dump(existing, f, indent=2, ensure_ascii=False)
+
+    lines = [f"Learned layout for {app_name} ({bundle_id})", f"Saved to: {path}", ""]
+    if layout["tab_bar"]:
+        lines.append(f"Tab bar ({len(layout['tab_bar'])} tabs):")
+        for label, info in layout["tab_bar"].items():
+            lines.append(f"  {label} → tap({info['tap'][0]}, {info['tap'][1]})")
+    if layout["nav_bar"].get("items"):
+        lines.append(f"Nav bar items:")
+        for label, info in layout["nav_bar"]["items"].items():
+            lines.append(f"  {label} → tap({info['tap'][0]}, {info['tap'][1]})")
+    if layout["search_fields"]:
+        lines.append(f"Search fields:")
+        for sf in layout["search_fields"]:
+            lines.append(f"  {sf['label']} → tap({sf['tap'][0]}, {sf['tap'][1]})")
+    if layout["inputs"]:
+        lines.append(f"Input fields:")
+        for inp in layout["inputs"]:
+            lines.append(f"  {inp['label']} → tap({inp['tap'][0]}, {inp['tap'][1]})")
+    nb = len(layout["buttons"])
+    if nb:
+        lines.append(f"Buttons: {nb} found (top 10):")
+        for b in layout["buttons"][:10]:
+            lines.append(f"  {b['label']} → tap({b['tap'][0]}, {b['tap'][1]})")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def wda_app_layout(bundle_id: str = "") -> str:
+    """Look up a previously cached app layout. If bundle_id is empty, lists all cached apps.
+    Use the cached coordinates to skip repeated wda_find calls for known UI elements."""
+    os.makedirs(APP_LAYOUTS_DIR, exist_ok=True)
+    if not bundle_id:
+        files = [f for f in os.listdir(APP_LAYOUTS_DIR) if f.endswith(".json")]
+        if not files:
+            return "No app layouts cached. Use wda_learn_app to scan one."
+        lines = ["Cached app layouts:"]
+        for f in sorted(files):
+            with open(os.path.join(APP_LAYOUTS_DIR, f)) as fh:
+                d = json.load(fh)
+            lines.append(f"  {d.get('app_name', '?')} ({f.replace('.json', '')}) — scanned {d.get('scanned_at', '?')}")
+        return "\n".join(lines)
+
+    path = os.path.join(APP_LAYOUTS_DIR, f"{bundle_id}.json")
+    if not os.path.exists(path):
+        return f"No cached layout for {bundle_id}. Use wda_learn_app to scan it."
+    with open(path) as f:
+        data = json.load(f)
+    return json.dumps(data, indent=2, ensure_ascii=False)
 
 
 def _patch_pymobiledevice3_dtx():
@@ -622,23 +1013,10 @@ def wda_start() -> str:
 
             _patch_pymobiledevice3_dtx()
 
-            tunnel_script = f"""
-import asyncio
-async def main():
-    from pymobiledevice3.remote.tunnel_service import (
-        create_core_device_tunnel_service_using_remotepairing,
-        start_tunnel, TunnelProtocol,
-    )
-    svc = await create_core_device_tunnel_service_using_remotepairing(
-        "{WDA_DEVICE_ID}", "{WDA_TAILSCALE_IP}", 49152)
-    async with start_tunnel(svc, protocol=TunnelProtocol.TCP) as t:
-        with open("/tmp/wda_tunnel.txt", "w") as f:
-            f.write(f"{{t.address}} {{t.port}}")
-        await asyncio.sleep(999999)
-asyncio.run(main())
-"""
+            tunnel_script = os.path.join(os.path.dirname(__file__), "scripts", "create_tunnel.py")
             subprocess.Popen(
-                ["sudo", "-S", "python3.13", "-c", tunnel_script],
+                ["sudo", "-n", "/opt/homebrew/bin/python3.13", tunnel_script,
+                 WDA_DEVICE_ID, WDA_TAILSCALE_IP, "49152"],
                 stdin=subprocess.DEVNULL,
                 stdout=open("/tmp/wda_tunnel.log", "w"), stderr=subprocess.STDOUT
             )

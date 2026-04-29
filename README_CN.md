@@ -6,17 +6,6 @@
 
 点击按钮、滑动屏幕、截图、输入文字、查看 UI 元素——全部通过自然语言完成。
 
-> ### ⚠️ 重要更新：HTTP 模式现在需要鉴权
->
-> 如果你**之前**在用 HTTP 模式（`server.py --http` 或 `server_chatgpt.py`），你的 server 对任何知道 URL 的人都是敞开的。现在 HTTP 模式**没有 OAuth 凭证就拒绝启动**，所有非本地请求都必须带 `Authorization: Bearer <token>`。
->
-> **本地 stdio 用户（Claude Code / Codex）不受影响。**
->
-> HTTP 用户 3 步升级：
-> 1. `python scripts/generate_oauth_creds.py` — 生成 `~/.wda-oauth.json`
-> 2. 重启 server — `bash scripts/start_http.sh`
-> 3. 在 claude.ai / ChatGPT 的 connector 配置里填入 `~/.wda-oauth.json` 中的 OAuth Client ID 和 Secret（见 [claude.ai 配置](#添加到-claudeai) 或 [ChatGPT 配置](CHATGPT_CN.md)）
-
 ## 先选接入路线
 
 WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、滑动。只读 MCP = 能看不能点。
