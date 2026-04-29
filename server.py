@@ -9,6 +9,7 @@ import subprocess
 import urllib.request
 import urllib.error
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 mcp = FastMCP("wda-mcp")
 
@@ -53,11 +54,19 @@ _ENABLED = set()
 for _g in _enabled_groups:
     _ENABLED |= _TOOL_GROUPS.get(_g.strip(), set())
 
-def _tool(func):
+_RO = ToolAnnotations(readOnlyHint=True)
+_RW = ToolAnnotations(readOnlyHint=False)
+_DESTRUCTIVE = ToolAnnotations(readOnlyHint=False, destructiveHint=True)
+
+def _tool(func=None, *, annotations=None):
     """Register as MCP tool only if its group is enabled."""
-    if func.__name__ in _ENABLED:
-        return mcp.tool()(func)
-    return func
+    def decorator(f):
+        if f.__name__ in _ENABLED:
+            return mcp.tool(annotations=annotations)(f)
+        return f
+    if func is not None:
+        return decorator(func)
+    return decorator
 
 _wda_session_id: str | None = None
 _wda_base: str | None = None
@@ -190,9 +199,9 @@ def _wda_get_session() -> str:
     return _wda_session_id
 
 
-@_tool
+@_tool(annotations=_RO)
 def wda_status() -> str:
-    """Check if WDA is running and ready. Returns device info and IP."""
+    """Check if WDA is running. Returns device info and IP."""
     r = _wda_request("GET", "/status")
     if "error" in r:
         return f"WDA not reachable: {r.get('error', 'unknown')}"
@@ -202,9 +211,9 @@ def wda_status() -> str:
 
 
 
-@_tool
+@_tool(annotations=_RO)
 def wda_screenshot() -> str:
-    """Take a screenshot (heavy, costs thousands of tokens). Use wda_check first for text-based viewing. Only use screenshot when text is insufficient — e.g. checking images, layout, or when wda_check output is unclear."""
+    """Capture screen as PNG. Use wda_check first to save tokens."""
     sid = _wda_get_session()
     r = _wda_request("GET", f"/session/{sid}/screenshot")
     if "error" in r:
@@ -217,9 +226,9 @@ def wda_screenshot() -> str:
     return f"Screenshot saved: {path}"
 
 
-@_tool
+@_tool(annotations=_RW)
 def wda_tap(x: float, y: float) -> str:
-    """Tap a point on iPhone screen. Use wda_info to check screen size (e.g. 393x852 points)."""
+    """Tap a point on screen (x, y in points)."""
     sid = _wda_get_session()
     r = _wda_request("POST", f"/session/{sid}/actions", {
         "actions": [{
@@ -239,10 +248,9 @@ def wda_tap(x: float, y: float) -> str:
     return f"Tapped ({x}, {y})"
 
 
-@_tool
+@_tool(annotations=_RW)
 def wda_swipe(fromX: float, fromY: float, toX: float, toY: float, duration: float = 0.1) -> str:
-    """Swipe on iPhone. Coords are points. Use wda_info to check screen size.
-    Home gesture: use wda_home instead."""
+    """Swipe between two points."""
     sid = _wda_get_session()
     r = _wda_request("POST", f"/session/{sid}/wda/dragfromtoforduration", {
         "fromX": fromX, "fromY": fromY, "toX": toX, "toY": toY, "duration": duration
@@ -252,9 +260,9 @@ def wda_swipe(fromX: float, fromY: float, toX: float, toY: float, duration: floa
     return f"Swiped ({fromX},{fromY}) -> ({toX},{toY})"
 
 
-@_tool
+@_tool(annotations=_RW)
 def wda_type(text: str) -> str:
-    """Type text on iPhone. Tap an input field first to focus it."""
+    """Type text into the focused input field."""
     sid = _wda_get_session()
     r = _wda_request("POST", f"/session/{sid}/wda/keys", {"value": list(text)})
     if "error" in r:
@@ -262,9 +270,9 @@ def wda_type(text: str) -> str:
     return f"Typed: {text}"
 
 
-@_tool
+@_tool(annotations=_RW)
 def wda_home() -> str:
-    """Go to home screen. WARNING: if already on home screen, this may open the app switcher instead. Use wda_check first to confirm current screen before navigating."""
+    """Go to home screen."""
     global _current_chat
     _current_chat = None
     sid = _wda_get_session()
@@ -279,9 +287,9 @@ def wda_home() -> str:
     return "Home"
 
 
-@_tool
+@_tool(annotations=_RW)
 def wda_back() -> str:
-    """Go back to previous page. Uses left edge swipe (iOS back gesture). Also tries tap '返回' button as fallback."""
+    """Go back (iOS left-edge swipe gesture)."""
     global _current_chat
     _current_chat = None
     sid = _wda_get_session()
@@ -293,9 +301,9 @@ def wda_back() -> str:
     return "Back (edge swipe)"
 
 
-@_tool
+@_tool(annotations=_RW)
 def wda_scroll(direction: str = "down") -> str:
-    """Scroll the screen. direction: 'down', 'up', 'left', 'right'."""
+    """Scroll the screen. direction: down/up/left/right."""
     sid = _wda_get_session()
     swipes = {
         "down":  {"fromX": _get_screen()["cx"], "fromY": int(_get_screen()["h"] * 0.7), "toX": _get_screen()["cx"], "toY": int(_get_screen()["h"] * 0.3), "duration": 0.3},
@@ -312,9 +320,9 @@ def wda_scroll(direction: str = "down") -> str:
     return f"Scrolled {direction}"
 
 
-@_tool
+@_tool(annotations=_RW)
 def wda_long_press(x: float, y: float, duration: float = 1.0) -> str:
-    """Long press at a point. duration in seconds (default 1s). Useful for context menus, voice messages, etc."""
+    """Long press at a point (default 1s)."""
     sid = _wda_get_session()
     r = _wda_request("POST", f"/session/{sid}/actions", {
         "actions": [{
@@ -333,9 +341,9 @@ def wda_long_press(x: float, y: float, duration: float = 1.0) -> str:
     return f"Long pressed ({x}, {y}) for {duration}s"
 
 
-@_tool
+@_tool(annotations=_RO)
 def wda_notifications() -> str:
-    """Pull down notification center and read all visible notifications. Text-based, no screenshot."""
+    """Read all notifications (pulls down notification center)."""
     import xml.etree.ElementTree as ET
     sid = _wda_get_session()
     # Pull down from top
@@ -364,9 +372,9 @@ def wda_notifications() -> str:
         return f"Error: {e}"
 
 
-@_tool
+@_tool(annotations=_RO)
 def wda_clipboard() -> str:
-    """Read the iPhone clipboard content. Returns the text currently copied."""
+    """Read clipboard content."""
     sid = _wda_get_session()
     r = _wda_request("POST", f"/session/{sid}/wda/getPasteboard")
     if "error" in r:
@@ -396,9 +404,9 @@ def _is_home_screen() -> bool:
         return False
 
 
-@_tool
+@_tool(annotations=_RW)
 def wda_launch(name: str) -> str:
-    """Open any app by name using Spotlight search. Works for any installed app, no cache needed."""
+    """Open an app by name via Spotlight search."""
     global _current_chat
     _current_chat = None
     sid = _wda_get_session()
@@ -435,9 +443,9 @@ def wda_launch(name: str) -> str:
 
 
 
-@_tool
+@_tool(annotations=_RO)
 def wda_source() -> str:
-    """Get UI element tree of current screen. Returns XML with labels and coordinates."""
+    """Get full UI element tree as XML."""
     sid = _wda_get_session()
     r = _wda_request("GET", f"/session/{sid}/source")
     if "error" in r:
@@ -448,9 +456,9 @@ def wda_source() -> str:
     return src
 
 
-@_tool
+@_tool(annotations=_RO)
 def wda_find(text: str) -> str:
-    """Find UI elements matching text. Returns label, type, and tap coordinates. No screenshot needed."""
+    """Find elements by text. Returns labels and tap coordinates."""
     sid = _wda_get_session()
     r = _wda_request("GET", f"/session/{sid}/source")
     if "error" in r:
@@ -478,9 +486,9 @@ def wda_find(text: str) -> str:
         return f"Parse error: {e}"
 
 
-@_tool
+@_tool(annotations=_RW)
 def wda_tap_text(text: str) -> str:
-    """Find an element by text and tap it. Auto-retries for 3 seconds if not found (handles page loading)."""
+    """Find element by text and tap it (auto-retries 3x)."""
     import xml.etree.ElementTree as ET
     sid = _wda_get_session()
     text_lower = text.lower()
@@ -629,11 +637,9 @@ def _get_layout_coords(layout: dict | None) -> tuple[list, list]:
     return input_tap, send_tap
 
 
-@_tool
+@_tool(annotations=_RO)
 def wda_wechat_read(contact: str, count: int = 10) -> str:
-    """Open a WeChat chat and read recent messages. Stays in the chat after reading.
-    Default 10 messages. Source returns ALL pre-rendered messages (including off-screen),
-    typically 30-60 messages — pass a larger count to see more. One MCP round-trip."""
+    """Read recent WeChat messages from a contact. Stays in chat after reading."""
     global _current_chat
     sid = _wda_get_session()
     layout = _load_app_layout("com.tencent.xin")
@@ -675,11 +681,9 @@ def wda_wechat_read(contact: str, count: int = 10) -> str:
     return "\n".join(lines)
 
 
-@_tool
+@_tool(annotations=_RW)
 def wda_send_wechat(contact: str, text: str, verify: bool = True) -> str:
-    """Send a WeChat message in one shot. Navigates to chat, types, sends, and optionally verifies.
-    If already in the contact's chat (e.g. after wda_wechat_read), skips navigation.
-    Set verify=False to skip post-send verification (saves ~2-3s). Falls back to screenshot on failure."""
+    """Send a WeChat message. verify=False skips confirmation (faster)."""
     global _current_chat
     sid = _wda_get_session()
     layout = _load_app_layout("com.tencent.xin")
@@ -743,10 +747,9 @@ def wda_send_wechat(contact: str, text: str, verify: bool = True) -> str:
     return f"⚠ Send may have failed — message not found in chat. Screenshot: {screenshot_path}"
 
 
-@_tool
+@_tool(annotations=_RO)
 def wda_check(detail: bool = False) -> str:
-    """See the screen: current app + all visible text. Use FIRST before screenshot.
-    Set detail=True to also get device info, battery, and screen size."""
+    """See the screen: current app + visible text. detail=True adds device/battery info."""
     sid = _wda_get_session()
     import xml.etree.ElementTree as ET
     lines = []
@@ -855,10 +858,9 @@ def _scan_ui_structure(root) -> dict:
     return result
 
 
-@_tool
+@_tool(annotations=_RO)
 def wda_learn_app(name: str = "") -> str:
-    """Scan an app's UI and cache layout positions. If name is given, launches and scans.
-    If name is empty, lists all cached layouts. Use cached coords to skip repeated wda_find."""
+    """Scan app UI and cache layout. Empty name lists cached layouts."""
     import xml.etree.ElementTree as ET
 
     if not name:
@@ -970,9 +972,9 @@ def _patch_pymobiledevice3_dtx():
         return
 
 
-@_tool
+@_tool(annotations=_DESTRUCTIVE)
 def wda_start() -> str:
-    """Start/restart WDA service on iPhone. Tries remote (Tailscale) first, falls back to local xcodebuild."""
+    """Start/restart WDA on iPhone."""
     global _wda_base, _wda_session_id
     _wda_base = None
     _wda_session_id = None
@@ -1023,9 +1025,9 @@ def wda_start() -> str:
     return "WDA starting via xcodebuild (local). Check wda_status() in ~15 seconds."
 
 
-@_tool
+@_tool(annotations=_DESTRUCTIVE)
 def wda_renew() -> str:
-    """Rebuild WDA to renew 7-day signing certificate. Takes 2-3 min."""
+    """Rebuild WDA to renew 7-day signing (2-3 min)."""
     cmd = f"cd {WDA_PROJECT_DIR} && xcodebuild build-for-testing -project WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner -destination 'id={WDA_DEVICE_ID}' -allowProvisioningUpdates"
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
     if "BUILD SUCCEEDED" in result.stdout:
